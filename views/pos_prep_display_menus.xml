@@ -22,7 +22,20 @@
               action="action_pos_prep_order_history"
               sequence="20"/>
 
-    <!-- 3. Configuration Menu (for Managers) -->
+    <!-- 3. Reporting Menu (Kitchen Display) -->
+    <menuitem id="menu_kitchen_display_reporting"
+              name="Reporting"
+              parent="menu_kitchen_display_root"
+              groups="point_of_sale.group_pos_manager"
+              sequence="25"/>
+
+    <menuitem id="menu_kitchen_display_prep_time_report"
+              name="Preparation Time Report"
+              parent="menu_kitchen_display_reporting"
+              action="action_pos_preparation_time_report"
+              sequence="10"/>
+
+    <!-- 4. Configuration Menu (for Managers) -->
     <menuitem id="menu_kitchen_display_config"
               name="Configuration"
               parent="menu_kitchen_display_root"
@@ -37,7 +50,7 @@
 
 
     <!-- ========================================================= -->
-    <!-- Also under Point of Sale > Orders                         -->
+    <!-- Also under Point of Sale                                  -->
     <!-- ========================================================= -->
     <menuitem id="menu_pos_prep_display_root"
               name="Preparation Display"
@@ -51,5 +64,12 @@
               action="action_pos_prep_order_history"
               groups="point_of_sale.group_pos_manager"
               sequence="26"/>
+
+    <menuitem id="menu_pos_preparation_time_report"
+              name="Preparation Time Report"
+              parent="point_of_sale.menu_point_rep"
+              action="action_pos_preparation_time_report"
+              groups="point_of_sale.group_pos_manager"
+              sequence="25"/>
 
 </odoo>

@@ -18,15 +18,23 @@
         return data.result;
     }
 
+    let lastRenderedKey = null;
+
     function render(status) {
+        if (!status) return;
         const pct = status.total_stages > 1 ? Math.round((status.sequence / (status.total_stages - 1)) * 100) : 100;
         const finished = status.sequence >= status.total_stages - 1;
+        const stateKey = `${status.stage_name}|${pct}|${finished}`;
+        if (stateKey === lastRenderedKey) {
+            return; // State unchanged: skip re-rendering to prevent any DOM blinking
+        }
+        lastRenderedKey = stateKey;
+
         root.innerHTML = `
         <div class="os-wrap ${finished ? "os-done" : ""}">
             <div class="os-stage">${status.stage_name}</div>
             <div class="os-bar"><div class="os-bar-fill" style="width:${Math.min(100, pct)}%"></div></div>
             <div class="os-sub">${finished ? "Enjoy your meal!" : "Almost there"}</div>
-            <div class="os-logo">Odoo</div>
         </div>`;
     }
 

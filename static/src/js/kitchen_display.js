@@ -460,7 +460,7 @@
             btn.onclick = async () => {
                 btn.disabled = true;
                 playSound("reset");
-                await rpc("/hudson_kitchen_display/previous_stage", { order_id: btn.dataset.order });
+                await rpc("/hudson_kitchen_display/reset_order", { order_id: btn.dataset.order });
                 fetchAndRender();
             };
         });

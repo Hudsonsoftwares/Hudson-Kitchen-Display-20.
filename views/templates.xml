@@ -224,34 +224,52 @@
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        font-size: 19px;
+                        font-size: 18px;
                         font-weight: 700;
-                        color: #1e2025;
-                        margin-bottom: 14px;
+                        color: #000000 !important;
+                        margin-bottom: 12px;
+                    }
+                    .kd-side-header span {
+                        color: #000000 !important;
+                        font-weight: 700 !important;
                     }
                     .kd-side-row {
                         display: flex;
                         justify-content: space-between;
                         align-items: center;
-                        padding: 10px 14px;
-                        font-size: 16px;
-                        color: #2b2e35;
+                        padding: 8px 12px;
+                        font-size: 15px;
+                        font-weight: 500;
+                        color: #555962;
                         cursor: pointer;
                         border-radius: 6px;
-                        margin-bottom: 4px;
+                        margin-bottom: 3px;
+                        background: transparent;
                         transition: background 0.15s, color 0.15s;
                     }
+                    .kd-side-row span:first-child {
+                        color: #555962;
+                        font-weight: 500;
+                    }
+                    .kd-side-row span:last-child {
+                        font-size: 15px;
+                        font-weight: 500;
+                        color: #555962;
+                    }
                     .kd-side-row:hover {
-                        background: #f4f6f8;
-                        color: #1e2025;
+                        background: #f1f3f5;
+                        color: #212529;
+                    }
+                    .kd-side-row:hover span {
+                        color: #212529;
                     }
                     .kd-side-row.active {
                         background: #e9ecef;
                         color: #1e2025;
-                        font-weight: 700;
+                        font-weight: 600;
                     }
-                    .kd-side-row span:last-child {
-                        font-size: 16px;
+                    .kd-side-row.active span {
+                        color: #1e2025;
                         font-weight: 600;
                     }
                     .kd-btn-clear-all {
@@ -497,6 +515,56 @@
                     .kd-card-footer-btn.btn-done {
                         color: #212529;
                     }
+                    .kd-card-print-btn {
+                        background: transparent;
+                        border: none;
+                        color: #495057;
+                        cursor: pointer;
+                        padding: 4px 6px;
+                        border-radius: 4px;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: background 0.15s, color 0.15s;
+                    }
+                    .kd-card-print-btn:hover {
+                        background: #e2e8f0;
+                        color: #0f172a;
+                    }
+                    .kd-card-barcode {
+                        font-size: 11px;
+                        font-family: monospace;
+                        font-weight: 700;
+                        color: #64748b;
+                        background: #f1f5f9;
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        letter-spacing: 0.5px;
+                    }
+                    .kd-scan-toast {
+                        position: fixed;
+                        bottom: 28px;
+                        right: 28px;
+                        background: #10b981;
+                        color: #ffffff;
+                        padding: 14px 22px;
+                        border-radius: 8px;
+                        font-size: 15px;
+                        font-weight: 700;
+                        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+                        z-index: 99999;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        opacity: 0;
+                        transform: translateY(20px);
+                        pointer-events: none;
+                        transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    }
+                    .kd-scan-toast.show {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
                     .kd-empty-state {
                         color: #ffffff;
                         font-size: 20px;
@@ -534,7 +602,7 @@
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>Done
                             <span class="kd-help-icon">?</span>
                         </button>
-                        <button class="kd-head-btn kd-head-btn-close" id="btn-close" title="Exit to Odoo">Close &#10148;</button>
+                        <button class="kd-head-btn kd-head-btn-close" id="btn-close" title="Close">Close &#10148;</button>
                     </div>
                 </header>
 
@@ -547,7 +615,7 @@
                                 <span>Time</span>
                                 <span id="count-time-total">0</span>
                             </div>
-                            <div class="kd-side-row active" data-time="now">
+                            <div class="kd-side-row" data-time="now">
                                 <span>Now</span>
                                 <span id="count-time-now">0</span>
                             </div>
@@ -570,13 +638,17 @@
                                 <span>Preset</span>
                                 <span id="count-preset-total">0</span>
                             </div>
-                            <div class="kd-side-row active" data-preset="all">
+                            <div class="kd-side-row" data-preset="dine_in">
                                 <span>Dine In</span>
                                 <span id="count-preset-dinein">0</span>
                             </div>
                             <div class="kd-side-row" data-preset="takeout">
-                                <span>Takeout <span style="font-size: 11px; color: #777; margin-left: 2px;">&#9660;</span></span>
+                                <span>Takeout</span>
                                 <span id="count-preset-takeout">0</span>
+                            </div>
+                            <div class="kd-side-row" data-preset="delivery">
+                                <span>Delivery</span>
+                                <span id="count-preset-delivery">0</span>
                             </div>
                         </div>
 
@@ -615,7 +687,7 @@
                         let orders = [];
                         let categories = [];
                         let currentTab = "to_cook";
-                        let currentTimeFilter = "now";
+                        let currentTimeFilter = "all";
                         let currentPresetFilter = "all";
                         let currentCategoryFilter = "all";
                         let zoomScale = 1;
@@ -903,8 +975,9 @@
 
                             // Update sidebar counts
                             const countTotal = orders.length;
-                            const countDineIn = orders.filter(o => o.fulfillment_type !== "takeout").length;
+                            const countDineIn = orders.filter(o => o.fulfillment_type === "dine_in" || (!o.fulfillment_type || (o.fulfillment_type !== "takeout" && o.fulfillment_type !== "delivery"))).length;
                             const countTakeout = orders.filter(o => o.fulfillment_type === "takeout").length;
+                            const countDelivery = orders.filter(o => o.fulfillment_type === "delivery").length;
 
                             const elTimeTotal = document.getElementById("count-time-total");
                             const elTimeNow = document.getElementById("count-time-now");
@@ -912,6 +985,7 @@
                             const elPresetTotal = document.getElementById("count-preset-total");
                             const elPresetDineIn = document.getElementById("count-preset-dinein");
                             const elPresetTakeout = document.getElementById("count-preset-takeout");
+                            const elPresetDelivery = document.getElementById("count-preset-delivery");
 
                             if (elTimeTotal) elTimeTotal.textContent = countTotal;
                             if (elTimeNow) elTimeNow.textContent = countTotal;
@@ -919,6 +993,7 @@
                             if (elPresetTotal) elPresetTotal.textContent = countTotal;
                             if (elPresetDineIn) elPresetDineIn.textContent = countDineIn;
                             if (elPresetTakeout) elPresetTakeout.textContent = countTakeout;
+                            if (elPresetDelivery) elPresetDelivery.textContent = countDelivery;
 
                             container.querySelectorAll(".kd-tab").forEach(tab => {
                                 tab.onclick = () => {
@@ -971,6 +1046,83 @@
                             });
                         }
 
+                        function printOrderTicket(orderId) {
+                            let printFrame = document.getElementById("kd-print-frame");
+                            if (!printFrame) {
+                                printFrame = document.createElement("iframe");
+                                printFrame.id = "kd-print-frame";
+                                printFrame.style.position = "fixed";
+                                printFrame.style.right = "-1000px";
+                                printFrame.style.bottom = "-1000px";
+                                printFrame.style.width = "10px";
+                                printFrame.style.height = "10px";
+                                printFrame.style.border = "none";
+                                document.body.appendChild(printFrame);
+                            }
+                            printFrame.src = `/hudson_kitchen_display/ticket_html/${orderId}?t=${Date.now()}`;
+                        }
+
+                        function showScannerToast(msg, isError) {
+                            let toast = document.getElementById("kd-scan-toast");
+                            if (!toast) {
+                                toast = document.createElement("div");
+                                toast.id = "kd-scan-toast";
+                                document.body.appendChild(toast);
+                            }
+                            toast.innerHTML = (isError ? '⚠️ ' : '⚡ ') + msg;
+                            toast.style.background = isError ? "#ef4444" : "#10b981";
+                            toast.className = "kd-scan-toast show";
+                            setTimeout(() => {
+                                toast.className = "kd-scan-toast";
+                            }, 3500);
+                        }
+
+                        async function handleBarcodeScan(scannedCode) {
+                            if (!scannedCode) return;
+                            try {
+                                const res = await rpc("/hudson_kitchen_display/scan_barcode", {
+                                    barcode: scannedCode,
+                                    display_id: displayId
+                                });
+                                if (res && res.success) {
+                                    playSound(res.action === "done" ? "completed" : "ready");
+                                    showScannerToast(`Scanned ${res.barcode || scannedCode}: ${res.table || 'Order'} moved to ${res.stage_name || 'Next Stage'}!`);
+                                    await loadData();
+                                } else {
+                                    showScannerToast(res ? res.message : "Barcode not found", true);
+                                }
+                            } catch (err) {
+                                console.error("Barcode scan error:", err);
+                                showScannerToast("Error processing barcode scan", true);
+                            }
+                        }
+
+                        // Hardware Barcode Scanner Listener (USB / Bluetooth HID Keyboard Wedge)
+                        let barcodeBuffer = "";
+                        let lastKeyTime = Date.now();
+
+                        window.addEventListener("keydown", async (e) => {
+                            if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+
+                            const now = Date.now();
+                            if (now - lastKeyTime > 150) {
+                                barcodeBuffer = "";
+                            }
+                            lastKeyTime = now;
+
+                            if (e.key === "Enter") {
+                                if (barcodeBuffer.trim().length >= 2) {
+                                    e.preventDefault();
+                                    const code = barcodeBuffer.trim();
+                                    barcodeBuffer = "";
+                                    await handleBarcodeScan(code);
+                                }
+                                barcodeBuffer = "";
+                            } else if (e.key && e.key.length === 1) {
+                                barcodeBuffer += e.key;
+                            }
+                        });
+
                         function renderCards() {
                             const canvas = document.getElementById("kd-canvas");
                             if (!canvas) return;
@@ -990,18 +1142,16 @@
                                 filtered = orders.slice();
                             }
 
-                            if (currentTab !== "all") {
-                                if (currentPresetFilter === "dine_in") {
-                                    filtered = filtered.filter(o => o.fulfillment_type !== "takeout");
-                                } else if (currentPresetFilter === "takeout") {
-                                    filtered = filtered.filter(o => o.fulfillment_type === "takeout");
-                                }
+                            if (currentPresetFilter === "dine_in") {
+                                filtered = filtered.filter(o => o.fulfillment_type === "dine_in" || (!o.fulfillment_type || (o.fulfillment_type !== "takeout" && o.fulfillment_type !== "delivery")));
+                            } else if (currentPresetFilter === "takeout") {
+                                filtered = filtered.filter(o => o.fulfillment_type === "takeout");
+                            } else if (currentPresetFilter === "delivery") {
+                                filtered = filtered.filter(o => o.fulfillment_type === "delivery");
+                            }
 
-                                if (currentTimeFilter === "now") {
-                                    filtered = filtered.filter(o => (o.minutes_ago || 0) <= 720);
-                                } else if (currentTimeFilter === "today") {
-                                    filtered = filtered.filter(o => (o.minutes_ago || 0) <= 1440);
-                                }
+                            if (currentTimeFilter === "today") {
+                                filtered = filtered.filter(o => (o.minutes_ago || 0) <= 1440);
                             }
 
                             if (currentCategoryFilter !== "all") {
@@ -1017,7 +1167,11 @@
                                 const tableDisp = o.table_number || (o.pos_reference ? o.pos_reference.split(" ").slice(-1)[0] : "");
                                 const guests = o.customer_count || 1;
                                 const timer = (o.minutes_ago !== undefined && !isNaN(o.minutes_ago)) ? Math.max(0, Math.abs(o.minutes_ago)) : 0;
-                                const fulfillment = (o.fulfillment_type === "takeout" ? "Takeout" : "Dine In");
+                                const fulfillment = (o.fulfillment_type === "takeout" ? "Takeout" : (o.fulfillment_type === "delivery" ? "Delivery" : "Dine In"));
+                                const barcode = o.barcode || `KDS${String(o.id).padStart(6, '0')}`;
+
+                                const stageObj = stages.find(s => s.id === o.stage_id);
+                                const isLate = !!(stageObj && stageObj.alert_timer > 0 && timer >= stageObj.alert_timer);
 
                                 const linesHtml = (o.lines || []).map(l => {
                                     const isDone = isLineDone(l.id, l.is_done);
@@ -1038,7 +1192,6 @@
                                 const isTeal = (idx % 2 === 1);
                                 const headerBg = isTeal ? "background: #80cbc4;" : "background: #ffffff;";
 
-                                const stageObj = stages.find(s => s.id === o.stage_id);
                                 const stageTag = (currentTab === "all" && stageObj) ? `<span style="background:rgba(0,0,0,0.08); font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${stageObj.name}</span>` : "";
 
                                 const stageIdx = stages.findIndex(s => s.id === o.stage_id);
@@ -1063,7 +1216,10 @@
                                     <div class="kd-order-card" data-order-id="${o.id}">
                                         <div class="kd-card-header-bar" style="${headerBg}" title="Click header to advance entire order">
                                             <span class="kd-table-title">${tableDisp}</span>
-                                            <div style="display:flex; align-items:center; gap:8px;">
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                <button class="kd-card-print-btn" data-order-id="${o.id}" title="Print Kitchen Ticket (${barcode})">
+                                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+                                                </button>
                                                 ${stageTag}
                                                 <span class="kd-guest-count">
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
@@ -1074,7 +1230,8 @@
                                         <div class="kd-card-body">
                                             <div class="kd-badges-row">
                                                 <span class="kd-badge-preset">${fulfillment}</span>
-                                                <span class="kd-badge-timer">&#128337; ${timer}</span>
+                                                <span class="kd-card-barcode">${barcode}</span>
+                                                <span class="kd-badge-timer ${isLate ? 'late' : ''}" title="${isLate ? 'Alert: Order waited past stage time limit' : ''}">&#128337; ${timer}'</span>
                                             </div>
                                             <ul class="kd-order-lines">
                                                 ${linesHtml}
@@ -1084,6 +1241,15 @@
                                     </div>
                                 `;
                             }).join("");
+
+                            // Print ticket buttons
+                            canvas.querySelectorAll(".kd-card-print-btn").forEach(btn => {
+                                btn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    const orderId = btn.dataset.orderId;
+                                    if (orderId) printOrderTicket(orderId);
+                                };
+                            });
 
                             // Click individual food line to toggle done
                             canvas.querySelectorAll(".kd-line-item").forEach(item => {
@@ -1110,12 +1276,15 @@
                                             const currentIdx = stages.findIndex(s => s.id === order.stage_id);
                                             if (currentIdx !== -1 && currentIdx + 1 < stages.length) {
                                                 const nextStage = stages[currentIdx + 1];
-                                                if (nextStage.name.toLowerCase().includes("complete")) {
+                                                const sName = (nextStage.name || "").toLowerCase();
+                                                const isCompleted = sName.includes("complete") || sName.includes("finish") || (currentIdx + 1 === stages.length - 1 && stages.length >= 2);
+
+                                                if (isCompleted) {
                                                     playSound("completed");
                                                     syncOrderToTracking("ready", order, order.id);
                                                 } else {
                                                     playSound("ready");
-                                                    syncOrderToTracking("ready", order, order.id);
+                                                    syncOrderToTracking("preparing", order, order.id);
                                                 }
                                                 order.lines.forEach(line => delete doneLines[line.id]);
                                                 localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
@@ -1139,7 +1308,7 @@
                             function syncOrderToTracking(action, order, orderId) {
                                 try {
                                     const targetId = orderId || (order ? order.id : null);
-                                    const num = order ? (order.table_number || (order.pos_reference ? order.pos_reference.split(" ").slice(-1)[0] : "") || String(order.id)).replace(/^T/, "") : "";
+                                    const num = order ? (order.display_number || order.tracking_number || order.table_number || (order.pos_reference ? order.pos_reference.split(" ").slice(-1)[0] : "") || String(order.id)).replace(/^T/, "") : "";
                                     const payload = {
                                         action: action,
                                         id: targetId,
@@ -1150,9 +1319,9 @@
                                     let readyList = JSON.parse(localStorage.getItem("kd_tracking_ready_orders") || "[]");
                                     let prepList = JSON.parse(localStorage.getItem("kd_tracking_prep_orders") || "[]");
 
-                                    const cutoff = Date.now() - 25 * 60 * 1000;
-                                    readyList = readyList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId));
-                                    prepList = prepList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId));
+                                    const cutoff = Date.now() - 45 * 1000;
+                                    readyList = readyList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
+                                    prepList = prepList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
 
                                     if (action === "ready") {
                                         if (num) readyList.unshift({ id: targetId, reference: num, timestamp: Date.now() });
@@ -1178,9 +1347,16 @@
                                     playSound("reset");
                                     const orderId = btn.dataset.orderId;
                                     const order = orders.find(o => String(o.id) === String(orderId));
-                                    syncOrderToTracking("preparing", order, orderId);
+                                    if (order) {
+                                        if (order.lines) {
+                                            order.lines.forEach(line => delete doneLines[line.id]);
+                                            localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
+                                        }
+                                        // Resetting back to initial stage: remove from customer tracking display
+                                        syncOrderToTracking("done", order, orderId);
+                                    }
                                     btn.disabled = true;
-                                    await rpc("/hudson_kitchen_display/previous_stage", { order_id: orderId });
+                                    await rpc("/hudson_kitchen_display/reset_order", { order_id: orderId });
                                     await loadData();
                                 };
                             });
@@ -1199,8 +1375,8 @@
                                         timestamp: Date.now()
                                     };
 
-                                    // Push this order immediately to "Ready" on Order Screen!
-                                    syncOrderToTracking("ready", order, orderId);
+                                    // Order is completed / done -> drop immediately from Order Tracking screen
+                                    syncOrderToTracking("done", order, orderId);
 
                                     btn.disabled = true;
                                     const card = btn.closest(".kd-order-card");
@@ -1223,12 +1399,15 @@
                                     const currentIdx = stages.findIndex(s => s.id === order.stage_id);
                                     if (currentIdx !== -1 && currentIdx + 1 < stages.length) {
                                         const nextStage = stages[currentIdx + 1];
-                                        if (nextStage.name.toLowerCase().includes("complete")) {
+                                        const sName = (nextStage.name || "").toLowerCase();
+                                        const isCompleted = sName.includes("complete") || sName.includes("finish") || (currentIdx + 1 === stages.length - 1 && stages.length >= 2);
+
+                                        if (isCompleted) {
                                             playSound("completed");
                                             syncOrderToTracking("ready", order, order.id);
                                         } else {
                                             playSound("ready");
-                                            syncOrderToTracking("ready", order, order.id);
+                                            syncOrderToTracking("preparing", order, order.id);
                                         }
                                         card.style.opacity = "0.5";
                                         if (order.lines) {
@@ -1303,8 +1482,10 @@
                         function exitScreen() {
                             if (window.opener) {
                                 window.close();
+                            } else if (window.history && window.history.length > 1) {
+                                window.history.back();
                             } else {
-                                window.location.href = "/odoo/action-976";
+                                window.location.href = "/web";
                             }
                         }
 
@@ -1369,6 +1550,7 @@
                                     const lastStage = stages[stages.length - 1];
                                     const completedOrders = orders.filter(o => o.stage_id === lastStage.id);
                                     if (completedOrders.length) {
+                                        completedOrders.forEach(o => syncOrderToTracking("done", o, o.id));
                                         const lastOrder = completedOrders.sort((a, b) => new Date(b.create_date) - new Date(a.create_date))[0];
                                         lastMovedAction = {
                                             orderId: lastOrder.id,
@@ -1427,12 +1609,31 @@
                             });
                         });
 
+                        // "Clear All Orders" / Batch stage advance
                         const btnClearAll = document.getElementById("btn-clear-all");
                         if (btnClearAll) {
                             btnClearAll.onclick = async () => {
-                                if (confirm("Are you sure you want to reset/clear all orders?")) {
-                                    await rpc("/hudson_kitchen_display/reset_all", { display_id: displayId });
-                                    await loadData();
+                                let activeStage = null;
+                                if (currentTab === "to_cook") activeStage = stages.find(s => s.name.toLowerCase().includes("cook")) || stages[0];
+                                else if (currentTab === "ready") activeStage = stages.find(s => s.name.toLowerCase().includes("ready")) || (stages.length > 1 ? stages[1] : null);
+                                else if (currentTab === "completed") activeStage = stages.find(s => s.name.toLowerCase().includes("complete")) || (stages.length > 2 ? stages[2] : null);
+
+                                if (activeStage) {
+                                    const nextIdx = stages.indexOf(activeStage) + 1;
+                                    const targetName = (nextIdx < stages.length) ? stages[nextIdx].name : "Completed";
+                                    if (confirm(`Move all orders in "${activeStage.name}" to "${targetName}"?`)) {
+                                        playSound("done");
+                                        await rpc("/hudson_kitchen_display/batch_advance", {
+                                            stage_id: activeStage.id,
+                                            display_id: displayId
+                                        });
+                                        await loadData();
+                                    }
+                                } else {
+                                    if (confirm("Are you sure you want to reset/clear all orders?")) {
+                                        await rpc("/hudson_kitchen_display/reset_all", { display_id: displayId });
+                                        await loadData();
+                                    }
                                 }
                             };
                         }
@@ -1457,22 +1658,32 @@
                             };
                         }
 
-                        // Sidebar Time Filters
+                        // Sidebar Time Filters (Toggleable)
                         document.querySelectorAll(".kd-side-row[data-time]").forEach(row => {
                             row.onclick = () => {
+                                const isAlreadyActive = row.classList.contains("active");
                                 document.querySelectorAll(".kd-side-row[data-time]").forEach(r => r.classList.remove("active"));
-                                row.classList.add("active");
-                                currentTimeFilter = row.dataset.time;
+                                if (isAlreadyActive) {
+                                    currentTimeFilter = "all";
+                                } else {
+                                    row.classList.add("active");
+                                    currentTimeFilter = row.dataset.time;
+                                }
                                 renderCards();
                             };
                         });
 
-                        // Sidebar Preset Filters
+                        // Sidebar Preset Filters (Toggleable)
                         document.querySelectorAll(".kd-side-row[data-preset]").forEach(row => {
                             row.onclick = () => {
+                                const isAlreadyActive = row.classList.contains("active");
                                 document.querySelectorAll(".kd-side-row[data-preset]").forEach(r => r.classList.remove("active"));
-                                row.classList.add("active");
-                                currentPresetFilter = row.dataset.preset;
+                                if (isAlreadyActive) {
+                                    currentPresetFilter = "all";
+                                } else {
+                                    row.classList.add("active");
+                                    currentPresetFilter = row.dataset.preset;
+                                }
                                 renderCards();
                             };
                         });
@@ -1526,92 +1737,124 @@
                     .pos-tracking-container {
                         width: 100%;
                         min-height: 100vh;
-                        padding: 48px 56px 80px 56px;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        position: relative;
+                        background: #374151;
+                    }
+                    .pos-tracking-col {
+                        padding: 56px 56px 80px 56px;
+                        min-height: 100vh;
                         display: flex;
                         flex-direction: column;
-                        position: relative;
                     }
-                    .pos-tracking-section {
-                        margin-bottom: 40px;
+                    .pos-tracking-col-almost {
+                        background: #374151;
+                        border-right: 2px solid rgba(0, 0, 0, 0.18);
+                    }
+                    .pos-tracking-col-ready {
+                        background: #4b5563;
+                    }
+                    .pos-tracking-section-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 16px;
+                        margin-bottom: 32px;
                     }
                     .pos-tracking-title {
-                        font-size: 58px;
+                        font-size: 72px;
                         font-weight: 800;
                         color: #ffffff;
-                        letter-spacing: -0.5px;
-                        margin-bottom: 24px;
-                        line-height: 1.1;
+                        letter-spacing: -1.5px;
+                        line-height: 1;
+                        margin: 0;
+                    }
+                    .pos-tracking-badge {
+                        background: rgba(255, 255, 255, 0.16);
+                        border: 1px solid rgba(255, 255, 255, 0.25);
+                        border-radius: 20px;
+                        padding: 4px 16px;
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        letter-spacing: 0.5px;
                     }
                     .pos-tracking-grid {
                         display: flex;
                         flex-wrap: wrap;
-                        align-items: center;
-                        gap: 24px;
+                        align-items: flex-start;
+                        align-content: flex-start;
+                        gap: 20px;
+                        min-height: 140px;
                     }
                     .pos-tracking-card {
                         min-width: 220px;
                         height: 140px;
                         padding: 0 28px;
-                        border-radius: 18px;
+                        border-radius: 24px;
                         display: flex;
+                        flex-direction: column;
                         align-items: center;
                         justify-content: center;
-                        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+                        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
                         transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s ease;
-                        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                        position: relative;
+                    }
+                    .pos-tracking-card.pos-card-new {
+                        animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     }
                     @keyframes popIn {
                         0% { transform: scale(0.85); opacity: 0; }
                         100% { transform: scale(1); opacity: 1; }
                     }
-                    .pos-card-ready {
-                        background-color: #16a34a;
-                    }
                     .pos-card-almost {
-                        background-color: #4b5563;
+                        background: #242933;
+                        border: 1px solid rgba(255, 255, 255, 0.08);
+                    }
+                    .pos-card-ready {
+                        background: linear-gradient(135deg, #16a34a, #15803d);
+                        box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
                     }
                     .pos-card-number {
                         color: #ffffff;
-                        font-size: 88px;
+                        font-size: 84px;
                         font-weight: 800;
                         line-height: 1;
                         letter-spacing: -1px;
                         text-align: center;
                     }
                     .pos-card-number.long-number {
-                        font-size: 72px;
+                        font-size: 68px;
                     }
                     .pos-card-number.very-long {
-                        font-size: 56px;
+                        font-size: 52px;
+                    }
+                    .pos-card-stage-pill {
+                        margin-top: 6px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                        letter-spacing: 0.6px;
+                        background: rgba(255, 255, 255, 0.18);
+                        padding: 2px 10px;
+                        border-radius: 12px;
+                        color: rgba(255, 255, 255, 0.90);
                     }
                     .pos-empty-hint {
-                        color: rgba(255, 255, 255, 0.35);
-                        font-size: 24px;
+                        color: rgba(255, 255, 255, 0.28);
+                        font-size: 28px;
                         font-weight: 600;
-                        padding: 20px 0;
-                    }
-                    .pos-tracking-logo {
-                        position: fixed;
-                        bottom: 24px;
-                        right: 36px;
-                        color: #ffffff;
-                        font-size: 38px;
-                        font-weight: 800;
-                        letter-spacing: -2px;
-                        line-height: 1;
-                        opacity: 0.95;
-                        user-select: none;
-                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        padding: 24px 0;
                     }
                     .pos-tracking-btn-kitchen {
                         position: fixed;
-                        top: 28px;
-                        right: 36px;
+                        top: 24px;
+                        right: 28px;
                         display: inline-flex;
                         align-items: center;
                         gap: 8px;
-                        background: rgba(255, 255, 255, 0.10);
-                        border: 1px solid rgba(255, 255, 255, 0.22);
+                        background: rgba(255, 255, 255, 0.12);
+                        border: 1px solid rgba(255, 255, 255, 0.25);
                         color: #ffffff;
                         padding: 9px 18px;
                         border-radius: 8px;
@@ -1623,33 +1866,40 @@
                         z-index: 100;
                     }
                     .pos-tracking-btn-kitchen:hover {
-                        background: rgba(255, 255, 255, 0.22);
-                        border-color: rgba(255, 255, 255, 0.45);
+                        background: rgba(255, 255, 255, 0.25);
+                        border-color: rgba(255, 255, 255, 0.50);
                         color: #ffffff;
                         transform: translateY(-1px);
                     }
-                    @media (max-width: 768px) {
-                        .pos-tracking-btn-kitchen {
-                            top: 14px;
-                            right: 16px;
-                            padding: 6px 12px;
-                            font-size: 12px;
-                        }
+                    @media (max-width: 900px) {
                         .pos-tracking-container {
-                            padding: 28px 20px 70px 20px;
+                            grid-template-columns: 1fr;
+                        }
+                        .pos-tracking-col {
+                            padding: 36px 24px 50px 24px;
+                            min-height: auto;
+                        }
+                        .pos-tracking-col-almost {
+                            border-right: none;
+                            border-bottom: 2px solid rgba(0, 0, 0, 0.2);
                         }
                         .pos-tracking-title {
-                            font-size: 40px;
-                            margin-bottom: 16px;
+                            font-size: 48px;
+                            margin-bottom: 20px;
+                        }
+                        .pos-tracking-badge {
+                            font-size: 16px;
+                            padding: 2px 10px;
                         }
                         .pos-tracking-grid {
                             gap: 16px;
+                            min-height: 105px;
                         }
                         .pos-tracking-card {
                             min-width: 150px;
                             height: 105px;
                             padding: 0 16px;
-                            border-radius: 14px;
+                            border-radius: 16px;
                         }
                         .pos-card-number {
                             font-size: 64px;
@@ -1671,20 +1921,23 @@
                         <span>Kitchen Display</span>
                     </a>
 
-                    <!-- Ready Section -->
-                    <div class="pos-tracking-section">
-                        <h1 class="pos-tracking-title">Ready</h1>
-                        <div class="pos-tracking-grid" id="tracking-ready-grid"></div>
-                    </div>
-
-                    <!-- Almost there Section -->
-                    <div class="pos-tracking-section">
-                        <h1 class="pos-tracking-title">Almost there</h1>
+                    <!-- Left Column: Almost there Section -->
+                    <div class="pos-tracking-col pos-tracking-col-almost">
+                        <div class="pos-tracking-section-header">
+                            <h1 class="pos-tracking-title" id="tracking-prep-title">Almost there</h1>
+                            <span class="pos-tracking-badge" id="prep-count-badge" style="display:none;">0</span>
+                        </div>
                         <div class="pos-tracking-grid" id="tracking-prep-grid"></div>
                     </div>
 
-                    <!-- Odoo Branding -->
-                    <div class="pos-tracking-logo">odoo</div>
+                    <!-- Right Column: Ready Section -->
+                    <div class="pos-tracking-col pos-tracking-col-ready">
+                        <div class="pos-tracking-section-header">
+                            <h1 class="pos-tracking-title" id="tracking-ready-title">Ready</h1>
+                            <span class="pos-tracking-badge" id="ready-count-badge" style="display:none;">0</span>
+                        </div>
+                        <div class="pos-tracking-grid" id="tracking-ready-grid"></div>
+                    </div>
                 </div>
 
                 <script><![CDATA[
@@ -1695,6 +1948,8 @@
                         const displayId = root.dataset.displayId;
                         const accessToken = root.dataset.accessToken;
 
+                        let readyOrders = [];
+                        let prepOrders = [];
                         let prevReadyIds = new Set();
                         let audioCtx = null;
 
@@ -1713,7 +1968,7 @@
                                 const ctx = getAudioContext();
                                 if (!ctx) return;
                                 const now = ctx.currentTime;
-                                [1567.98, 2351.97].forEach((f, idx) => {
+                                [1567.98, 2351.97].forEach((f) => {
                                     const osc = ctx.createOscillator();
                                     const gain = ctx.createGain();
                                     osc.type = "triangle";
@@ -1725,7 +1980,7 @@
                                     osc.start(now);
                                     osc.stop(now + 0.22);
                                 });
-                                [1760.00, 2640.00].forEach((f, idx) => {
+                                [1760.00, 2640.00].forEach((f) => {
                                     const t = now + 0.14;
                                     const osc = ctx.createOscillator();
                                     const gain = ctx.createGain();
@@ -1743,25 +1998,106 @@
 
                         window.addEventListener("click", () => { getAudioContext(); }, { once: true });
 
-                        function renderCard(order, isReady) {
-                            const ref = String(order.reference || "");
-                            let sizeClass = "";
-                            if (ref.length >= 6) {
-                                sizeClass = "very-long";
-                            } else if (ref.length >= 4) {
-                                sizeClass = "long-number";
+                        function updateBadges() {
+                            const readyBadge = document.getElementById("ready-count-badge");
+                            if (readyBadge) {
+                                readyBadge.textContent = readyOrders.length;
+                                readyBadge.style.display = readyOrders.length ? "inline-block" : "none";
                             }
-                            const bgClass = isReady ? "pos-card-ready" : "pos-card-almost";
-                            return `
-                                <div class="pos-tracking-card ${bgClass}" data-order-id="${order.id}">
-                                    <span class="pos-card-number ${sizeClass}">${ref}</span>
-                                </div>
-                            `;
+                            const prepBadge = document.getElementById("prep-count-badge");
+                            if (prepBadge) {
+                                prepBadge.textContent = prepOrders.length;
+                                prepBadge.style.display = prepOrders.length ? "inline-block" : "none";
+                            }
+                        }
+
+                        // DOM Reconciliation: Update grid without innerHTML wipe to eliminate blinking
+                        function reconcileGrid(containerEl, orders, isReady) {
+                            if (!containerEl) return;
+
+                            if (!orders || orders.length === 0) {
+                                if (!containerEl.querySelector(".pos-empty-hint")) {
+                                    containerEl.innerHTML = '<div class="pos-empty-hint">-</div>';
+                                }
+                                return;
+                            }
+
+                            const hint = containerEl.querySelector(".pos-empty-hint");
+                            if (hint) hint.remove();
+
+                            const existingCards = new Map();
+                            containerEl.querySelectorAll(".pos-tracking-card").forEach(card => {
+                                const ref = card.dataset.orderRef;
+                                if (ref) existingCards.set(ref, card);
+                            });
+
+                            const newRefs = new Set(orders.map(o => String(o.reference)));
+
+                            // 1. Remove cards that no longer exist
+                            existingCards.forEach((card, ref) => {
+                                if (!newRefs.has(ref)) {
+                                    card.remove();
+                                }
+                            });
+
+                            // 2. Add or update cards in order
+                            orders.forEach((order, idx) => {
+                                const ref = String(order.reference);
+                                let card = existingCards.get(ref);
+
+                                if (!card) {
+                                    card = document.createElement("div");
+                                    card.dataset.orderRef = ref;
+                                    if (order.id) card.dataset.orderId = order.id;
+
+                                    let sizeClass = "";
+                                    if (ref.length >= 6) {
+                                        sizeClass = "very-long";
+                                    } else if (ref.length >= 4) {
+                                        sizeClass = "long-number";
+                                    }
+
+                                    const bgClass = isReady ? "pos-card-ready" : "pos-card-almost";
+                                    card.className = `pos-tracking-card ${bgClass} pos-card-new`;
+
+                                    const stageTag = (!isReady && order.stage_name)
+                                        ? `<span class="pos-card-stage-pill">${order.stage_name}</span>`
+                                        : "";
+
+                                    card.innerHTML = `
+                                        <span class="pos-card-number ${sizeClass}">${ref}</span>
+                                        ${stageTag}
+                                    `;
+
+                                    const currentChildren = containerEl.querySelectorAll(".pos-tracking-card");
+                                    if (idx < currentChildren.length) {
+                                        containerEl.insertBefore(card, currentChildren[idx]);
+                                    } else {
+                                        containerEl.appendChild(card);
+                                    }
+                                } else {
+                                    const bgClass = isReady ? "pos-card-ready" : "pos-card-almost";
+                                    if (!card.classList.contains(bgClass)) {
+                                        card.classList.remove("pos-card-ready", "pos-card-almost");
+                                        card.classList.add(bgClass);
+                                    }
+                                    card.classList.remove("pos-card-new");
+
+                                    const currentChildren = containerEl.querySelectorAll(".pos-tracking-card");
+                                    if (currentChildren[idx] !== card) {
+                                        if (idx < currentChildren.length) {
+                                            containerEl.insertBefore(card, currentChildren[idx]);
+                                        } else {
+                                            containerEl.appendChild(card);
+                                        }
+                                    }
+                                }
+                            });
                         }
 
                         function getSharedOrders(key) {
                             try {
-                                const cutoff = Date.now() - 25 * 60 * 1000;
+                                const cutoff = Date.now() - 45 * 1000;
                                 let list = JSON.parse(localStorage.getItem(key) || "[]");
                                 return list.filter(item => (item.timestamp || 0) >= cutoff);
                             } catch(e) { return []; }
@@ -1771,8 +2107,31 @@
                             try {
                                 const bc = new BroadcastChannel("kd_order_tracking_channel");
                                 bc.onmessage = (event) => {
-                                    if (event.data && event.data.action === "ready") {
+                                    const data = event.data;
+                                    if (!data) return;
+                                    if (data.action === "ready") {
                                         playReadyBell();
+                                    } else if (data.action === "done") {
+                                        const targetRef = String(data.reference || "");
+                                        const targetId = String(data.id || "");
+                                        readyOrders = readyOrders.filter(o => String(o.reference) !== targetRef && String(o.id) !== targetId);
+                                        prepOrders = prepOrders.filter(o => String(o.reference) !== targetRef && String(o.id) !== targetId);
+                                        const readyEl = document.getElementById("tracking-ready-grid");
+                                        const prepEl = document.getElementById("tracking-prep-grid");
+                                        reconcileGrid(readyEl, readyOrders, true);
+                                        reconcileGrid(prepEl, prepOrders, false);
+                                        updateBadges();
+                                        return;
+                                    } else if (data.action === "clear_done") {
+                                        const ids = new Set((data.ids || []).map(String));
+                                        readyOrders = readyOrders.filter(o => !ids.has(String(o.id)));
+                                        prepOrders = prepOrders.filter(o => !ids.has(String(o.id)));
+                                        const readyEl = document.getElementById("tracking-ready-grid");
+                                        const prepEl = document.getElementById("tracking-prep-grid");
+                                        reconcileGrid(readyEl, readyOrders, true);
+                                        reconcileGrid(prepEl, prepOrders, false);
+                                        updateBadges();
+                                        return;
                                     }
                                     update();
                                 };
@@ -1780,8 +2139,11 @@
                         }
 
                         async function update() {
-                            let readyOrders = [];
-                            let prepOrders = [];
+                            let serverReady = [];
+                            let serverPrep = [];
+                            let readyTitle = "Ready";
+                            let prepTitle = "Almost there";
+
                             try {
                                 const res = await fetch("/hudson_kitchen_display/get_display_orders_status", {
                                     method: "POST",
@@ -1795,53 +2157,67 @@
                                 });
                                 const data = await res.json();
                                 if (data && data.result) {
-                                    readyOrders = (data.result.ready || []).slice();
-                                    prepOrders = (data.result.preparing || []).slice();
+                                    serverReady = (data.result.ready || []).slice();
+                                    serverPrep = (data.result.preparing || []).slice();
+                                    if (data.result.ready_title) readyTitle = data.result.ready_title;
+                                    if (data.result.prep_title) prepTitle = data.result.prep_title;
                                 }
                             } catch (e) {}
 
-                            // Merge shared real-time orders (e.g. from kitchen Done button click!)
+                            // Update dynamic stage titles
+                            const readyTitleEl = document.getElementById("tracking-ready-title");
+                            if (readyTitleEl && readyTitleEl.textContent !== readyTitle) {
+                                readyTitleEl.textContent = readyTitle;
+                            }
+                            const prepTitleEl = document.getElementById("tracking-prep-title");
+                            if (prepTitleEl && prepTitleEl.textContent !== prepTitle) {
+                                prepTitleEl.textContent = prepTitle;
+                            }
+
+                            // Merge real-time optimistic shared orders from local storage
+                            let mergedReady = serverReady.slice();
+                            let mergedPrep = serverPrep.slice();
+
                             const sharedReady = getSharedOrders("kd_tracking_ready_orders");
                             const sharedPrep = getSharedOrders("kd_tracking_prep_orders");
 
                             sharedReady.forEach(sr => {
-                                if (sr.reference && !readyOrders.some(ro => String(ro.reference) === String(sr.reference))) {
-                                    readyOrders.unshift({ id: sr.id, reference: sr.reference });
+                                const srId = String(sr.id || "");
+                                const srRef = String(sr.reference || "");
+                                if (srRef && !mergedReady.some(ro => String(ro.reference) === srRef || (srId && String(ro.id) === srId))) {
+                                    mergedReady.unshift({ id: sr.id, reference: srRef, is_ready: true });
                                 }
-                                prepOrders = prepOrders.filter(po => String(po.reference) !== String(sr.reference));
+                                mergedPrep = mergedPrep.filter(po => String(po.reference) !== srRef && (!srId || String(po.id) !== srId));
                             });
 
                             sharedPrep.forEach(sp => {
-                                if (sp.reference && !prepOrders.some(po => String(po.reference) === String(sp.reference)) && !readyOrders.some(ro => String(ro.reference) === String(sp.reference))) {
-                                    prepOrders.unshift({ id: sp.id, reference: sp.reference });
+                                const spId = String(sp.id || "");
+                                const spRef = String(sp.reference || "");
+                                if (spRef && !mergedPrep.some(po => String(po.reference) === spRef || (spId && String(po.id) === spId)) && !mergedReady.some(ro => String(ro.reference) === spRef || (spId && String(ro.id) === spId))) {
+                                    mergedPrep.unshift({ id: sp.id, reference: spRef, is_ready: false });
                                 }
                             });
 
-                            // Check if any order moved to Ready
+                            // Check if any order moved to Ready and play chime
                             if (prevReadyIds.size > 0) {
-                                const newlyReady = readyOrders.some(o => !prevReadyIds.has(o.reference));
+                                const newlyReady = mergedReady.some(o => !prevReadyIds.has(String(o.reference)));
                                 if (newlyReady) playReadyBell();
                             }
-                            prevReadyIds = new Set(readyOrders.map(o => o.reference));
+                            prevReadyIds = new Set(mergedReady.map(o => String(o.reference)));
+
+                            readyOrders = mergedReady;
+                            prepOrders = mergedPrep;
 
                             const readyEl = document.getElementById("tracking-ready-grid");
                             const prepEl = document.getElementById("tracking-prep-grid");
 
-                            if (readyEl) {
-                                readyEl.innerHTML = readyOrders.length
-                                    ? readyOrders.map(o => renderCard(o, true)).join("")
-                                    : `<div class="pos-empty-hint">-</div>`;
-                            }
-
-                            if (prepEl) {
-                                prepEl.innerHTML = prepOrders.length
-                                    ? prepOrders.map(o => renderCard(o, false)).join("")
-                                    : `<div class="pos-empty-hint">-</div>`;
-                            }
+                            reconcileGrid(readyEl, readyOrders, true);
+                            reconcileGrid(prepEl, prepOrders, false);
+                            updateBadges();
                         }
 
                         update();
-                        setInterval(update, 2000);
+                        setInterval(update, 2500);
                     })();
                 ]]></script>
             </body>

@@ -8,10 +8,14 @@ class PosPrepDisplay(models.Model):
     _description = 'Kitchen / Preparation Display'
 
     name = fields.Char(required=True)
+    company_id = fields.Many2one(
+        'res.company', string='Company', required=True, index=True,
+        default=lambda self: self.env.company)
     pos_config_ids = fields.Many2many(
         'pos.config', string='Point of Sale',
+        domain="[('company_id', '=', company_id)]",
         help='Orders from these Point of Sale configs will be pushed to this display. '
-             'Leave empty to receive orders from every POS.')
+             'Leave empty to receive orders from every POS in this company.')
     category_ids = fields.Many2many(
         'pos.category', string='Product categories',
         help='Only order lines whose product belongs to one of these categories will '
@@ -19,6 +23,15 @@ class PosPrepDisplay(models.Model):
     auto_clear = fields.Boolean(
         string='Auto clear',
         help='Automatically drop an order from the screen once it reaches the last stage.')
+    auto_print = fields.Boolean(
+        string='Auto Print on Stage',
+        default=False,
+        help='Automatically trigger ticket printing when an order moves to the designated stage.')
+    print_stage_id = fields.Many2one(
+        'pos.prep.display.stage',
+        string='Print at Stage',
+        domain="[('display_id', '=', id)]",
+        help='Orders entering this stage will trigger ticket printing.')
     def _default_stage_ids(self):
         return [
             (0, 0, {'name': 'To cook', 'sequence': 1, 'color': '#C8C9CB', 'alert_timer': 10}),
@@ -45,7 +58,7 @@ class PosPrepDisplay(models.Model):
 
     def _compute_order_count(self):
         for rec in self:
-            rec.order_count = self.env['pos.prep.order'].search_count(
+            rec.order_count = self.env['pos.kitchen.order'].search_count(
                 [('display_id', '=', rec.id)])
 
     @api.depends('stage_ids')
@@ -54,17 +67,17 @@ class PosPrepDisplay(models.Model):
             stages = rec.stage_ids.sorted('sequence')
             last_stage = stages[-1:] if stages else False
             if last_stage:
-                in_prog = self.env['pos.prep.order'].search_count([
+                in_prog = self.env['pos.kitchen.order'].search_count([
                     ('display_id', '=', rec.id),
                     ('stage_id', '!=', last_stage.id),
                 ])
             else:
-                in_prog = self.env['pos.prep.order'].search_count([
+                in_prog = self.env['pos.kitchen.order'].search_count([
                     ('display_id', '=', rec.id),
                 ])
             rec.in_progress_count = in_prog
 
-            completed = self.env['pos.prep.order'].search([
+            completed = self.env['pos.kitchen.order'].search([
                 ('display_id', '=', rec.id),
                 ('done_date', '!=', False),
             ])
@@ -90,8 +103,10 @@ class PosPrepDisplay(models.Model):
         self.ensure_one()
         first_stage = self.stage_ids.sorted('sequence')[:1]
         if first_stage:
-            self.env['pos.prep.order'].search(
-                [('display_id', '=', self.id)]).write({'stage_id': first_stage.id})
+            orders = self.env['pos.kitchen.order'].search([('display_id', '=', self.id)])
+            orders.write({'stage_id': first_stage.id, 'done_date': False, 'active': True})
+            orders.mapped('line_ids').write({'is_done': False})
+            orders._notify_display()
         return True
 
     def action_open_kitchen_screen(self):
@@ -129,6 +144,9 @@ class PosPrepDisplayStage(models.Model):
     _order = 'sequence, id'
 
     display_id = fields.Many2one('pos.prep.display', required=True, ondelete='cascade')
+    company_id = fields.Many2one(
+        'res.company', string='Company', related='display_id.company_id',
+        store=True, index=True)
     name = fields.Char(required=True)
     sequence = fields.Integer(default=10)
     color = fields.Char(string='Color', default='#C8C9CB', help='Color used for this stage on the kitchen screen.')

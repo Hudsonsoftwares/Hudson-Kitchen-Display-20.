@@ -1,28 +1,114 @@
-/* Styling for Preparation Display Kanban View matching Odoo Online Enterprise */
+/* ==========================================================================
+   Preparation Display Kanban View Styling (Seamless Light & Dark Theme Support)
+   Matching Odoo Online / Enterprise Reference Design
+   ========================================================================== */
 
-/* Kanban Container and Record Width */
+/* Kanban Container Width */
 .o_kanban_renderer.o_kanban_dashboard,
 .o_kanban_renderer:has(.o_prep_display_card) {
-    --KanbanRecord-width: 500px !important;
+    --KanbanRecord-width: 480px;
 }
 
+/* --------------------------------------------------------------------------
+   1. Base & LIGHT MODE (Default)
+   -------------------------------------------------------------------------- */
 .o_prep_display_card,
 .o_kanban_record.o_prep_display_card,
 .o_kanban_record:has(.o_prep_display_card) {
-    min-width: 500px !important;
-    max-width: 520px !important;
-    width: 500px !important;
+    min-width: 460px !important;
+    max-width: 500px !important;
+    width: 480px !important;
     min-height: 155px !important;
-    background-color: #232532 !important;
-    border: 1px solid #2d3040 !important;
-    border-radius: 6px !important;
-    color: #ffffff !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    color: #1e293b !important;
     padding: 16px 20px !important;
     position: relative !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* 3-dots Menu Button matching Odoo Online */
+.o_prep_card_title {
+    color: #1e293b !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+}
+
+/* Stage Badges / Pills (Light Mode) */
+.o_prep_stage_pill {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #ced4da !important;
+    padding: 3px 12px !important;
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    border-radius: 20px !important;
+    display: inline-block !important;
+    line-height: 1.4 !important;
+}
+
+/* Preparation Screen Button (Plum Purple - Both Modes) */
+.o_prep_btn_primary {
+    background-color: #714B67 !important;
+    border: 1px solid #714B67 !important;
+    border-radius: 4px !important;
+    padding: 7px 16px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.o_prep_btn_primary:hover,
+.o_prep_btn_primary:focus {
+    background-color: #835777 !important;
+    border-color: #835777 !important;
+    color: #ffffff !important;
+}
+
+/* Order Status Screen Button (Light Mode) */
+.o_prep_btn_secondary {
+    background-color: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px !important;
+    padding: 7px 16px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #212529 !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.o_prep_btn_secondary:hover,
+.o_prep_btn_secondary:focus {
+    background-color: #f8f9fa !important;
+    border-color: #adb5bd !important;
+    color: #000000 !important;
+}
+
+/* Right Stats (In progress & Average time - Light Mode) */
+.o_prep_stats {
+    min-width: 130px !important;
+    font-size: 12.5px !important;
+    line-height: 1.5 !important;
+}
+
+.o_prep_stat_label {
+    color: #6c757d !important;
+    font-size: 12.5px !important;
+}
+
+.o_prep_stat_val {
+    color: #212529 !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+}
+
+/* Dropdown 3-dots Menu Button (Light Mode) */
 .o_prep_display_card .o_dropdown_kanban,
 .o_kanban_record.o_prep_display_card .o_dropdown_kanban,
 .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban {
@@ -38,10 +124,10 @@
 .o_prep_display_card .o_dropdown_kanban button,
 .o_kanban_record.o_prep_display_card .o_dropdown_kanban button,
 .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban button {
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid #ced4da !important;
     border-radius: 4px !important;
     background-color: transparent !important;
-    color: #ffffff !important;
+    color: #495057 !important;
     padding: 3px 7px !important;
     line-height: 1 !important;
     display: inline-block !important;
@@ -50,16 +136,95 @@
 }
 
 .o_prep_display_card .o_dropdown_kanban button:hover,
-.o_prep_display_card .o_dropdown_kanban button:focus,
-.o_kanban_record.o_prep_display_card .o_dropdown_kanban.show button,
 .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban button:hover {
-    border-color: rgba(255, 255, 255, 0.7) !important;
+    border-color: #adb5bd !important;
+    background-color: #f1f3f5 !important;
+    color: #212529 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. DARK MODE (When user activates Dark Mode in Odoo)
+   -------------------------------------------------------------------------- */
+[data-color-scheme="dark"] .o_prep_display_card,
+[data-bs-theme="dark"] .o_prep_display_card,
+body.o_dark_mode .o_prep_display_card,
+[data-color-scheme="dark"] .o_kanban_record:has(.o_prep_display_card),
+[data-bs-theme="dark"] .o_kanban_record:has(.o_prep_display_card),
+body.o_dark_mode .o_kanban_record:has(.o_prep_display_card) {
+    background-color: #232532 !important;
+    border-color: #2d3040 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-color-scheme="dark"] .o_prep_card_title,
+[data-bs-theme="dark"] .o_prep_card_title,
+body.o_dark_mode .o_prep_card_title {
+    color: #ffffff !important;
+}
+
+/* Stage Badges / Pills (Dark Mode) */
+[data-color-scheme="dark"] .o_prep_stage_pill,
+[data-bs-theme="dark"] .o_prep_stage_pill,
+body.o_dark_mode .o_prep_stage_pill {
+    background-color: #36394a !important;
+    color: #d0d3de !important;
+    border-color: #4a4e63 !important;
+}
+
+/* Order Status Screen Button (Dark Mode) */
+[data-color-scheme="dark"] .o_prep_btn_secondary,
+[data-bs-theme="dark"] .o_prep_btn_secondary,
+body.o_dark_mode .o_prep_btn_secondary {
+    background-color: transparent !important;
+    border-color: #43475b !important;
+    color: #ffffff !important;
+}
+
+[data-color-scheme="dark"] .o_prep_btn_secondary:hover,
+[data-bs-theme="dark"] .o_prep_btn_secondary:hover,
+body.o_dark_mode .o_prep_btn_secondary:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: #5d627c !important;
+    color: #ffffff !important;
+}
+
+/* Right Stats (Dark Mode) */
+[data-color-scheme="dark"] .o_prep_stat_label,
+[data-bs-theme="dark"] .o_prep_stat_label,
+body.o_dark_mode .o_prep_stat_label {
+    color: #8e90a2 !important;
+}
+
+[data-color-scheme="dark"] .o_prep_stat_val,
+[data-bs-theme="dark"] .o_prep_stat_val,
+body.o_dark_mode .o_prep_stat_val {
+    color: #ffffff !important;
+}
+
+/* 3-dots Menu Button & Popup (Dark Mode) */
+[data-color-scheme="dark"] .o_prep_display_card .o_dropdown_kanban button,
+[data-bs-theme="dark"] .o_prep_display_card .o_dropdown_kanban button,
+body.o_dark_mode .o_prep_display_card .o_dropdown_kanban button,
+[data-color-scheme="dark"] .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban button,
+[data-bs-theme="dark"] .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban button,
+body.o_dark_mode .o_kanban_record:has(.o_prep_display_card) .o_dropdown_kanban button {
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    background-color: transparent !important;
+    color: #ffffff !important;
+}
+
+[data-color-scheme="dark"] .o_prep_display_card .o_dropdown_kanban button:hover,
+[data-bs-theme="dark"] .o_prep_display_card .o_dropdown_kanban button:hover,
+body.o_dark_mode .o_prep_display_card .o_dropdown_kanban button:hover {
+    border-color: rgba(255, 255, 255, 0.6) !important;
     background-color: rgba(255, 255, 255, 0.1) !important;
     color: #ffffff !important;
 }
 
-/* Dropdown Menu Popup */
-.o-dropdown--kanban-record-menu {
+[data-color-scheme="dark"] .o-dropdown--kanban-record-menu,
+[data-bs-theme="dark"] .o-dropdown--kanban-record-menu,
+body.o_dark_mode .o-dropdown--kanban-record-menu {
     background-color: #2b2d3d !important;
     border: 1px solid #3d4156 !important;
     border-radius: 6px !important;
@@ -68,88 +233,19 @@
     min-width: 170px !important;
 }
 
-.o-dropdown--kanban-record-menu .dropdown-item {
+[data-color-scheme="dark"] .o-dropdown--kanban-record-menu .dropdown-item,
+[data-bs-theme="dark"] .o-dropdown--kanban-record-menu .dropdown-item,
+body.o_dark_mode .o-dropdown--kanban-record-menu .dropdown-item {
     color: #e2e4ec !important;
     font-size: 13.5px !important;
     padding: 7px 16px !important;
     display: block !important;
     text-decoration: none !important;
-    cursor: pointer !important;
 }
 
-.o-dropdown--kanban-record-menu .dropdown-item:hover,
-.o-dropdown--kanban-record-menu .dropdown-item:focus {
+[data-color-scheme="dark"] .o-dropdown--kanban-record-menu .dropdown-item:hover,
+[data-bs-theme="dark"] .o-dropdown--kanban-record-menu .dropdown-item:hover,
+body.o_dark_mode .o-dropdown--kanban-record-menu .dropdown-item:hover {
     background-color: #3b3f57 !important;
     color: #ffffff !important;
-}
-
-/* Stage Badges / Pills */
-.o_prep_stage_pill {
-    background: #362835 !important;
-    color: #d8b8d4 !important;
-    border: 1px solid #4a3449 !important;
-    padding: 3px 12px !important;
-    font-size: 12px !important;
-    font-weight: 500 !important;
-    border-radius: 20px !important;
-    display: inline-block !important;
-    line-height: 1.4 !important;
-}
-
-/* Preparation Screen Button (Plum Purple) */
-.o_prep_btn_primary {
-    background-color: #714B67 !important;
-    border: 1px solid #714B67 !important;
-    border-radius: 4px !important;
-    padding: 7px 16px !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    color: #ffffff !important;
-    text-decoration: none !important;
-    display: inline-block !important;
-}
-
-.o_prep_btn_primary:hover,
-.o_prep_btn_primary:focus {
-    background-color: #835777 !important;
-    border-color: #835777 !important;
-    color: #ffffff !important;
-}
-
-/* Order Status Screen Button (Slate Dark) */
-.o_prep_btn_secondary {
-    background-color: #2b2d3c !important;
-    border: 1px solid #3d4052 !important;
-    border-radius: 4px !important;
-    padding: 7px 16px !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    color: #ffffff !important;
-    text-decoration: none !important;
-    display: inline-block !important;
-}
-
-.o_prep_btn_secondary:hover,
-.o_prep_btn_secondary:focus {
-    background-color: #373a4d !important;
-    border-color: #4b4f66 !important;
-    color: #ffffff !important;
-}
-
-/* Right Stats (In progress & Average time) */
-.o_prep_stats {
-    min-width: 140px !important;
-    font-size: 13px !important;
-    line-height: 1.5 !important;
-}
-
-.o_prep_stat_label {
-    color: #8e90a2 !important;
-    font-size: 13px !important;
-}
-
-.o_prep_stat_val {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    font-size: 14px !important;
 }

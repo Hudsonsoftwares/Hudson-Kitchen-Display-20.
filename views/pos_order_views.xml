@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extend POS Order backend form with manual Send to Kitchen button and Kitchen Orders stat button -->
+    <record id="view_pos_pos_form_inherit_kitchen" model="ir.ui.view">
+        <field name="name">pos.order.form.inherit.kitchen</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_manual_send_to_kitchen"
+                        type="object"
+                        string="Send to Kitchen"
+                        class="btn btn-primary"
+                        icon="fa-cutlery"/>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="action_view_kitchen_orders"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-cutlery"
+                        invisible="kitchen_order_count == 0">
+                    <field name="kitchen_order_count" widget="statinfo" string="Kitchen Orders"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

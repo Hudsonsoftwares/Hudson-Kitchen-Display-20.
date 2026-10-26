@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Graph View -->
+    <record id="view_pos_preparation_time_report_graph" model="ir.ui.view">
+        <field name="name">pos.preparation.time.report.graph</field>
+        <field name="model">pos.preparation.time.report</field>
+        <field name="arch" type="xml">
+            <graph string="Preparation Time Report" type="bar" sample="1">
+                <field name="product_id"/>
+                <field name="avg_prep_duration" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Pivot View -->
+    <record id="view_pos_preparation_time_report_pivot" model="ir.ui.view">
+        <field name="name">pos.preparation.time.report.pivot</field>
+        <field name="model">pos.preparation.time.report</field>
+        <field name="arch" type="xml">
+            <pivot string="Preparation Time Report" sample="1">
+                <field name="display_id" type="row"/>
+                <field name="product_id" type="row"/>
+                <field name="avg_prep_duration" type="measure"/>
+                <field name="prep_duration" type="measure"/>
+                <field name="quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- List View -->
+    <record id="view_pos_preparation_time_report_list" model="ir.ui.view">
+        <field name="name">pos.preparation.time.report.list</field>
+        <field name="model">pos.preparation.time.report</field>
+        <field name="arch" type="xml">
+            <list string="Preparation Time Report" create="0" delete="0" default_order="date desc">
+                <field name="date" string="Date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="display_id"/>
+                <field name="pos_reference"/>
+                <field name="table_name"/>
+                <field name="product_id"/>
+                <field name="pos_category_id"/>
+                <field name="fulfillment_type"/>
+                <field name="quantity"/>
+                <field name="prep_duration" string="Prep Time (s)" widget="float_time"/>
+                <field name="avg_prep_duration" string="Avg Prep Time (s)" widget="float_time"/>
+                <field name="done_date"/>
+                <field name="is_done" widget="boolean_toggle" readonly="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_pos_preparation_time_report_search" model="ir.ui.view">
+        <field name="name">pos.preparation.time.report.search</field>
+        <field name="model">pos.preparation.time.report</field>
+        <field name="arch" type="xml">
+            <search string="Preparation Time Report">
+                <field name="product_id"/>
+                <field name="pos_category_id"/>
+                <field name="categ_id"/>
+                <field name="display_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="pos_reference"/>
+                <field name="table_name"/>
+                <filter string="Last 30 Days" name="last_30_days"
+                        domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Today" name="today"
+                        domain="[('date', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="This Week" name="this_week"
+                        domain="[('date', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter string="Completed" name="completed" domain="[('is_done', '=', True)]"/>
+                <filter string="In Preparation" name="in_prep" domain="[('is_done', '=', False)]"/>
+                <separator/>
+                <filter string="Dine In" name="dine_in" domain="[('fulfillment_type', '=', 'dine_in')]"/>
+                <filter string="Takeout" name="takeout" domain="[('fulfillment_type', '=', 'takeout')]"/>
+                <filter string="Delivery" name="delivery" domain="[('fulfillment_type', '=', 'delivery')]"/>
+                <group>
+                    <filter string="Company" name="group_by_company"
+                            context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                    <filter string="Preparation Display" name="group_by_display"
+                            context="{'group_by': 'display_id'}"/>
+                    <filter string="Product" name="group_by_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="POS Category" name="group_by_pos_category"
+                            context="{'group_by': 'pos_category_id'}"/>
+                    <filter string="Stage" name="group_by_stage"
+                            context="{'group_by': 'stage_id'}"/>
+                    <filter string="Fulfillment" name="group_by_fulfillment"
+                            context="{'group_by': 'fulfillment_type'}"/>
+                    <separator/>
+                    <filter string="Date: Day" name="group_by_day"
+                            context="{'group_by': 'date:day'}"/>
+                    <filter string="Date: Month" name="group_by_month"
+                            context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_pos_preparation_time_report" model="ir.actions.act_window">
+        <field name="name">Preparation Time Report</field>
+        <field name="res_model">pos.preparation.time.report</field>
+        <field name="view_mode">graph,pivot,list</field>
+        <field name="search_view_id" ref="view_pos_preparation_time_report_search"/>
+        <field name="context">{'search_default_last_30_days': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No preparation time data found!
+            </p>
+            <p>
+                Track and analyze how long it takes to prepare orders across displays, products, and companies.
+            </p>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,126 @@
+/* =========================================================
+ * Odoo 20 POS Actions Modal Styling (Odoo Online Match)
+ * ========================================================= */
+
+/* Actions Modal Grid Layout */
+.control-buttons-modal {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    padding: 8px 4px 4px 4px !important;
+}
+
+@media (max-width: 992px) {
+    .control-buttons-modal {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .control-buttons-modal {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+/* Individual Action Button Card */
+.control-buttons-modal .control-button,
+.control-buttons-modal button.btn {
+    border-radius: 12px !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: #f8f9fa !important;
+    color: #1f2937 !important;
+    min-height: 96px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 14px 10px !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    transition: all 0.15s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.control-buttons-modal .control-button:hover:not(:disabled),
+.control-buttons-modal button.btn:hover:not(:disabled) {
+    background: #eef2f6 !important;
+    border-color: rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+.control-buttons-modal .control-button:disabled,
+.control-buttons-modal button.btn:disabled {
+    opacity: 0.42 !important;
+    background: #f9fafb !important;
+    border-color: rgba(0, 0, 0, 0.04) !important;
+    color: #9ca3af !important;
+    cursor: not-allowed !important;
+}
+
+/* Icons inside Action Buttons */
+.control-buttons-modal .control-button i.oi,
+.control-buttons-modal .control-button .fa,
+.control-buttons-modal button.btn i.oi {
+    font-size: 26px !important;
+    opacity: 0.65 !important;
+    margin-bottom: 2px !important;
+}
+
+/* Cancel Order Button: Full Width Prominent Red */
+.control-buttons-modal .btn-danger,
+.control-buttons-modal button[name="o_cancel_order_button"],
+.control-buttons-modal button:has(.oi-delete),
+.control-buttons-modal button:has([data-icon="delete"]) {
+    grid-column: 1 / -1 !important;
+    background: #ef4444 !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    min-height: 50px !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25) !important;
+    margin-top: 6px !important;
+}
+
+.control-buttons-modal .btn-danger:hover:not(:disabled),
+.control-buttons-modal button:has([data-icon="delete"]):hover:not(:disabled) {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(220, 38, 38, 0.35) !important;
+}
+
+.control-buttons-modal .btn-danger i.oi,
+.control-buttons-modal button:has([data-icon="delete"]) i.oi {
+    font-size: 18px !important;
+    opacity: 1 !important;
+    margin-bottom: 0 !important;
+    color: #ffffff !important;
+}
+
+/* Dark Mode support */
+[data-bs-theme="dark"] .control-buttons-modal .control-button,
+[data-bs-theme="dark"] .control-buttons-modal button.btn {
+    background: #1e2430 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .control-buttons-modal .control-button:hover:not(:disabled),
+[data-bs-theme="dark"] .control-buttons-modal button.btn:hover:not(:disabled) {
+    background: #283040 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+[data-bs-theme="dark"] .control-buttons-modal .control-button:disabled,
+[data-bs-theme="dark"] .control-buttons-modal button.btn:disabled {
+    background: #161b22 !important;
+    color: #64748b !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
+}

@@ -1,0 +1,18 @@
+ __manifest__.py                             |  12 [32m+[m[31m-[m
+ controllers/main.py                         | 642 [32m+++++++++++++++++++++[m[31m----[m
+ models/__init__.py                          |   1 [32m+[m
+ models/pos_order.py                         | 169 [32m+++++[m[31m--[m
+ models/pos_prep_display.py                  |  32 [32m+[m[31m-[m
+ models/pos_prep_order.py                    | 248 [32m++++++++[m[31m--[m
+ security/ir.model.access.csv                |  11 [31m-[m
+ static/src/css/pos_prep_display_backend.css | 270 [32m+++++++[m[31m----[m
+ static/src/js/kitchen_display.js            |   2 [32m+[m[31m-[m
+ static/src/js/order_status.js               |  10 [32m+[m[31m-[m
+ static/src/js/pos_send_button.js            |  66 [31m---[m
+ utils.py                                    |   2 [32m+[m[31m-[m
+ views/pos_prep_display_menus.xml            |  24 [32m+[m[31m-[m
+ views/pos_prep_display_views.xml            |  58 [32m++[m[31m-[m
+ views/pos_prep_order_views.xml              |  42 [32m+[m[31m-[m
+ views/res_users_views.xml                   |  10 [32m+[m[31m-[m
+ views/templates.xml                         | 698 [32m+++++++++++++++++++++[m[31m-------[m
+ 17 files changed, 1753 insertions(+), 544 deletions(-)

@@ -1,12 +1,13 @@
 <odoo>
 
     <record id="view_pos_prep_order_list" model="ir.ui.view">
-        <field name="name">pos.prep.order.list</field>
-        <field name="model">pos.prep.order</field>
+        <field name="name">pos.kitchen.order.list</field>
+        <field name="model">pos.kitchen.order</field>
         <field name="arch" type="xml">
             <list string="Kitchen Order History" default_order="create_date desc">
                 <field name="create_date" string="Received"/>
                 <field name="pos_order_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
                 <field name="display_id"/>
                 <field name="table_number"/>
                 <field name="fulfillment_type"/>
@@ -17,9 +18,27 @@
         </field>
     </record>
 
+    <record id="view_pos_prep_order_search" model="ir.ui.view">
+        <field name="name">pos.kitchen.order.search</field>
+        <field name="model">pos.kitchen.order</field>
+        <field name="arch" type="xml">
+            <search string="Kitchen Orders">
+                <field name="pos_reference"/>
+                <field name="display_id"/>
+                <field name="table_number"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Completed" name="done" domain="[('active', '=', False)]"/>
+                <filter string="Display" name="group_by_display" domain="[]" context="{'group_by': 'display_id'}"/>
+                <filter string="Stage" name="group_by_stage" domain="[]" context="{'group_by': 'stage_id'}"/>
+                <filter string="Company" name="group_by_company" domain="[]" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+            </search>
+        </field>
+    </record>
+
     <record id="view_pos_prep_order_pivot" model="ir.ui.view">
-        <field name="name">pos.prep.order.pivot</field>
-        <field name="model">pos.prep.order</field>
+        <field name="name">pos.kitchen.order.pivot</field>
+        <field name="model">pos.kitchen.order</field>
         <field name="arch" type="xml">
             <pivot string="Average Prep Time">
                 <field name="display_id" type="row"/>
@@ -29,21 +48,12 @@
         </field>
     </record>
 
-    <record id="view_pos_prep_order_graph" model="ir.ui.view">
-        <field name="name">pos.prep.order.graph</field>
-        <field name="model">pos.prep.order</field>
-        <field name="arch" type="xml">
-            <graph string="Average Prep Time" type="bar">
-                <field name="display_id"/>
-                <field name="prep_duration" type="measure"/>
-            </graph>
-        </field>
-    </record>
 
     <record id="action_pos_prep_order_history" model="ir.actions.act_window">
         <field name="name">Kitchen Order History</field>
-        <field name="res_model">pos.prep.order</field>
-        <field name="view_mode">list,pivot,graph</field>
+        <field name="res_model">pos.kitchen.order</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="search_view_id" ref="view_pos_prep_order_search"/>
     </record>
 
 </odoo>

@@ -55,7 +55,7 @@ def get_fulfillment_type(order):
     # Self-Order / Kiosk modules commonly add a field like this:
     if 'takeaway' in order._fields and order.takeaway:
         return 'takeout'
-    for delivery_field in ('delivery_provider_id', 'delivery_carrier_id'):
+    for delivery_field in ('delivery_provider_id', 'delivery_carrier_id', 'is_delivery_order', 'delivery_platform_id'):
         if delivery_field in order._fields and getattr(order, delivery_field):
             return 'delivery'
     return 'takeout'

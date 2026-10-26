@@ -5,10 +5,12 @@
         <field name="model">res.users</field>
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//page[@name='access_rights']" position="inside">
-                <group string="Kitchen Display">
-                    <field name="kitchen_screen_access"/>
-                </group>
+            <xpath expr="//notebook" position="inside">
+                <page string="Kitchen Display" name="kitchen_display_access">
+                    <group>
+                        <field name="kitchen_screen_access"/>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>

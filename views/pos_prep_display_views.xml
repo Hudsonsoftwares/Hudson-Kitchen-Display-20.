@@ -13,12 +13,15 @@
                         </h1>
                     </div>
                     <group>
-                        <group>
-                            <field name="pos_config_ids" widget="many2many_tags" placeholder="All"/>
+                        <group name="pos_filtering" string="POS &amp; Categories">
+                            <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+                            <field name="pos_config_ids" widget="many2many_tags" placeholder="All" domain="[('company_id', '=', company_id)]"/>
                             <field name="category_ids" widget="many2many_tags" placeholder="All"/>
                         </group>
-                        <group>
+                        <group name="workflow_printing" string="Workflow &amp; Printing">
                             <field name="auto_clear"/>
+                            <field name="auto_print"/>
+                            <field name="print_stage_id" invisible="not auto_print"/>
                         </group>
                     </group>
                     <notebook>
@@ -44,11 +47,25 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
                 <field name="pos_config_ids" widget="many2many_tags"/>
                 <field name="stage_names"/>
                 <field name="in_progress_count"/>
                 <field name="average_time"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_pos_prep_display_search" model="ir.ui.view">
+        <field name="name">pos.prep.display.search</field>
+        <field name="model">pos.prep.display</field>
+        <field name="arch" type="xml">
+            <search string="Preparation Displays">
+                <field name="name"/>
+                <field name="pos_config_ids"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <filter string="Company" name="group_by_company" domain="[]" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+            </search>
         </field>
     </record>
 
@@ -59,6 +76,7 @@
             <kanban class="o_kanban_dashboard o_prep_display_kanban" create="1">
                 <field name="id"/>
                 <field name="name"/>
+                <field name="company_id"/>
                 <field name="stage_names"/>
                 <field name="stage_names_list"/>
                 <field name="in_progress_count"/>
@@ -68,53 +86,47 @@
                         <a name="action_configure" type="object" class="dropdown-item">Configure</a>
                         <a name="action_reset_all_orders" type="object" class="dropdown-item">Reset all orders</a>
                     </t>
-                    <t t-name="card" class="o_prep_display_card p-3 d-flex flex-column justify-content-between position-relative" style="min-width: 500px !important; max-width: 520px !important; width: 500px !important; min-height: 155px !important; background-color: #232532 !important; border: 1px solid #2d3040 !important; border-radius: 6px !important; color: #ffffff !important;">
-                        <div style="min-width: 470px; width: 100%;">
+                    <t t-name="card" class="o_prep_display_card p-3 d-flex flex-column justify-content-between position-relative">
+                        <div class="w-100">
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-4">
-                                <h4 class="mb-0 fw-bold fs-5 text-truncate" style="color: #ffffff !important; font-size: 1.15rem !important;">
+                                <h4 class="mb-0 fw-bold fs-5 text-truncate o_prep_card_title">
                                     <field name="name"/>
                                 </h4>
                             </div>
                             <div class="d-flex flex-wrap gap-1 mb-4">
                                 <t t-if="record.stage_names_list.raw_value and record.stage_names_list.raw_value.length">
-                                    <t t-foreach="record.stage_names_list.raw_value" t-as="st_name">
-                                        <span class="badge rounded-pill me-1 o_prep_stage_pill" 
-                                              style="background: #362835 !important; color: #d8b8d4 !important; border: 1px solid #4a3449 !important; padding: 4px 12px !important; font-size: 12px !important; font-weight: 500 !important; border-radius: 20px !important; display: inline-block !important;">
-                                            <t t-esc="st_name"/>
-                                        </span>
+                                    <t t-foreach="record.stage_names_list.raw_value" t-as="st_name" t-key="st_name_index">
+                                        <span class="badge rounded-pill me-1 o_prep_stage_pill" t-out="st_name"/>
                                     </t>
                                 </t>
                                 <t t-elif="record.stage_names.value">
-                                    <span class="badge rounded-pill me-1 o_prep_stage_pill" 
-                                          style="background: #362835 !important; color: #d8b8d4 !important; border: 1px solid #4a3449 !important; padding: 4px 12px !important; font-size: 12px !important; font-weight: 500 !important; border-radius: 20px !important; display: inline-block !important;">
+                                    <span class="badge rounded-pill me-1 o_prep_stage_pill">
                                         <field name="stage_names"/>
                                     </span>
                                 </t>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between align-items-end mt-auto pt-2" style="min-width: 470px; width: 100%;">
+                        <div class="d-flex justify-content-between align-items-end mt-auto pt-2 w-100">
                             <div class="d-flex gap-2">
                                 <button name="action_open_kitchen_screen" type="object"
-                                        class="btn btn-sm px-3 fw-bold text-white shadow-none o_prep_btn_primary"
-                                        style="background-color: #714B67 !important; border: 1px solid #714B67 !important; border-radius: 4px !important; padding: 8px 16px !important; font-size: 13px !important; color: #ffffff !important;">
+                                        class="btn btn-sm px-3 fw-bold shadow-none o_prep_btn_primary">
                                     Preparation Screen
                                 </button>
                                 <button name="action_open_order_status_screen" type="object"
-                                        class="btn btn-sm px-3 fw-bold text-white shadow-none o_prep_btn_secondary"
-                                        style="background-color: #2b2d3c !important; border: 1px solid #3d4052 !important; border-radius: 4px !important; padding: 8px 16px !important; font-size: 13px !important; color: #ffffff !important;">
+                                        class="btn btn-sm px-3 fw-bold shadow-none o_prep_btn_secondary">
                                     Order Status Screen
                                 </button>
                             </div>
-                            <div class="ms-auto text-end o_prep_stats" style="min-width: 140px; font-size: 13px; line-height: 1.5;">
+                            <div class="ms-auto text-end o_prep_stats">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="o_prep_stat_label" style="color: #8e90a2 !important; font-size: 13px !important;">In progress</span>
-                                    <span class="o_prep_stat_val fw-bold fs-6 ms-3" style="color: #ffffff !important; font-size: 14px !important;">
+                                    <span class="o_prep_stat_label">In progress</span>
+                                    <span class="o_prep_stat_val fw-bold ms-3">
                                         <field name="in_progress_count"/>
                                     </span>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="o_prep_stat_label" style="color: #8e90a2 !important; font-size: 13px !important;">Average time</span>
-                                    <span class="o_prep_stat_val fw-bold fs-6 ms-3" style="color: #ffffff !important; font-size: 14px !important;">
+                                    <span class="o_prep_stat_label">Average time</span>
+                                    <span class="o_prep_stat_val fw-bold ms-3">
                                         <field name="average_time"/>'
                                     </span>
                                 </div>

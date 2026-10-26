@@ -1,0 +1,19 @@
+id,name,model_id,group_id/id,operation,domain
+access_pos_prep_display_manager,pos.prep.display.manager,pos.prep.display,point_of_sale.group_pos_manager,crud,
+access_pos_prep_display_user,pos.prep.display.user,pos.prep.display,point_of_sale.group_pos_user,r,
+access_pos_prep_display_stage_manager,pos.prep.display.stage.manager,pos.prep.display.stage,point_of_sale.group_pos_manager,crud,
+access_pos_prep_display_stage_user,pos.prep.display.stage.user,pos.prep.display.stage,point_of_sale.group_pos_user,r,
+access_pos_kitchen_order_manager,pos.kitchen.order.manager,pos.kitchen.order,point_of_sale.group_pos_manager,crud,
+access_pos_kitchen_order_user,pos.kitchen.order.user,pos.kitchen.order,point_of_sale.group_pos_user,cru,
+access_pos_kitchen_order_line_manager,pos.kitchen.order.line.manager,pos.kitchen.order.line,point_of_sale.group_pos_manager,crud,
+access_pos_kitchen_order_line_user,pos.kitchen.order.line.user,pos.kitchen.order.line,point_of_sale.group_pos_user,cru,
+access_pos_kitchen_order_stage_log_manager,pos.kitchen.order.stage.log.manager,pos.kitchen.order.stage.log,point_of_sale.group_pos_manager,crud,
+access_pos_kitchen_order_stage_log_user,pos.kitchen.order.stage.log.user,pos.kitchen.order.stage.log,point_of_sale.group_pos_user,cru,
+rule_pos_prep_display_multi_company,pos.prep.display.multi.company,pos.prep.display,,crud,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"
+rule_pos_prep_display_stage_multi_company,pos.prep.display.stage.multi.company,pos.prep.display.stage,,crud,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"
+rule_pos_kitchen_order_multi_company,pos.kitchen.order.multi.company,pos.kitchen.order,,crud,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"
+rule_pos_kitchen_order_line_multi_company,pos.kitchen.order.line.multi.company,pos.kitchen.order.line,,crud,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"
+rule_pos_kitchen_order_stage_log_multi_company,pos.kitchen.order.stage.log.multi.company,pos.kitchen.order.stage.log,,crud,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"
+access_pos_preparation_time_report_manager,pos.preparation.time.report.manager,pos.preparation.time.report,point_of_sale.group_pos_manager,r,
+access_pos_preparation_time_report_user,pos.preparation.time.report.user,pos.preparation.time.report,point_of_sale.group_pos_user,r,
+rule_pos_preparation_time_report_multi_company,pos.preparation.time.report.multi.company,pos.preparation.time.report,,r,"['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]"

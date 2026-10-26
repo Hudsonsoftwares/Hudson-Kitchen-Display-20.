@@ -1,6 +1,6 @@
 {
     'name': 'Kitchen Display System (Custom KDS)',
-    'version': '20.0.1.0.0.',
+    'version': '20.0.1.0.0',
     'category': 'Point of Sale',
     'summary': 'Kitchen Display / Preparation Display for Odoo Community',
     'description': """
@@ -38,10 +38,12 @@ See README.md in this folder for setup notes and known limitations.
     'license': 'LGPL-3',
     'depends': ['point_of_sale', 'pos_restaurant'],
     'data': [
-        'security/ir.model.access.csv',
+        'security/ir.access.csv',
         'views/pos_prep_display_views.xml',
         'views/pos_prep_order_views.xml',
+        'views/pos_order_views.xml',
         'views/res_users_views.xml',
+        'views/pos_preparation_time_report_views.xml',
         'views/pos_prep_display_menus.xml',
         'views/templates.xml',
     ],
@@ -54,11 +56,9 @@ See README.md in this folder for setup notes and known limitations.
             'hudson_kitchen_display/static/src/js/kitchen_display.js',
             'hudson_kitchen_display/static/src/js/order_status.js',
         ],
-        # Experimental / best-effort: a generic floating "Send to Kitchen"
-        # button injected into the live POS screen. See README - this is
-        # the one piece most likely to need adjusting per Odoo version.
         'point_of_sale._assets_pos': [
-            'hudson_kitchen_display/static/src/js/pos_send_button.js',
+            'hudson_kitchen_display/static/src/css/pos_actions_modal.css',
+            'hudson_kitchen_display/static/src/app/**/*',
         ],
     },
     'installable': True,
