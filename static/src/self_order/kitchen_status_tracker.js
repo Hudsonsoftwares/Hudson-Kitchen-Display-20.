@@ -397,7 +397,7 @@ patch(OrdersHistoryPage.prototype, {
         if (!order || !order.access_token) {
             return false;
         }
-        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
+        if (order.state === "cancel" || order.state === "done") {
             return false;
         }
         const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
@@ -407,7 +407,7 @@ patch(OrdersHistoryPage.prototype, {
             }
             return true;
         }
-        return order.state === "draft" && Boolean(order.isSynced);
+        return (order.state === "draft" && Boolean(order.isSynced)) || order.state === "paid";
     },
 
     get allOrders() {
