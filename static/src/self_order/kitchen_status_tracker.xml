@@ -21,16 +21,13 @@
                                 </svg>
                             </span>
                             <div class="hkd_self_title_meta">
-                                <div class="d-flex align-items-center gap-1">
-                                    <span class="hkd_self_status_title" t-out="this.getBatchTitle(batch)"/>
-                                    <span class="badge rounded-pill text-bg-primary px-1 py-0" style="font-size: 0.65rem; font-weight: 700;">CURRENT</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h4 class="mb-0 fw-bold text-dark" t-out="this.orderPosReference"/>
+                                    <span class="badge rounded-pill text-bg-primary px-2 py-0" style="font-size: 0.68rem; font-weight: 700;">Current</span>
                                 </div>
-                                <div class="hkd_self_batch_submeta">
-                                    <span t-if="batch.kds_reference" class="hkd_self_kds_ref">
-                                        <t t-out="batch.kds_reference"/>
-                                    </span>
-                                    <span t-if="batch.created_at" class="hkd_self_batch_time">
-                                        • <t t-out="this.formatBatchTime(batch.created_at)"/>
+                                <div class="hkd_self_batch_submeta mt-1">
+                                    <span t-if="this.orderSubmeta" class="text-muted fw-semibold">
+                                        <t t-out="this.orderSubmeta"/>
                                     </span>
                                     <span t-if="batch.total_qty" class="hkd_self_batch_count">
                                         • <t t-out="batch.total_qty"/> <t t-if="batch.total_qty === 1">item</t><t t-else="">items</t>

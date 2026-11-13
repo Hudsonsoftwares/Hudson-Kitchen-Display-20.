@@ -259,8 +259,12 @@ class PosOrder(models.Model):
                             'is_done': False,
                         })
                     categories_list = sorted(cat_groups.values(), key=lambda c: (c['category_id'] == 0, c['category_name']))
+                    pos_ref = self.pos_reference or self.name or ''
+                    tracking_num = self.tracking_number or ''
                     return {
                         'order_id': self.id,
+                        'pos_reference': pos_ref,
+                        'tracking_number': tracking_num,
                         'order_access_token': self.access_token or '',
                         'is_cancelled': False,
                         'has_kitchen': True,
@@ -293,6 +297,10 @@ class PosOrder(models.Model):
                             'total_stages': len(stages),
                             'is_completed': False,
                             'is_served_done': False,
+                            'title': pos_ref or _('Current Order'),
+                            'pos_reference': pos_ref,
+                            'tracking_number': tracking_num,
+                            'kds_reference': f"#{tracking_num}" if tracking_num else pos_ref,
                             'stages': stage_items,
                             'categories': categories_list,
                         }],
@@ -430,8 +438,9 @@ class PosOrder(models.Model):
                     b_cat['lines'].append(line_payload)
                     r_total_qty += qty_val
 
-            kds_refs = ", ".join(f"KDS #{t.id}" for t in r_tickets)
-            round_title = f"Current Order (Order #{idx_r})" if is_current else f"Order #{idx_r}"
+            pos_ref = self.pos_reference or self.name or ''
+            tracking_num = self.tracking_number or ''
+            round_title = pos_ref or (f"Current Order (Order #{idx_r})" if is_current else f"Order #{idx_r}")
             batches.append({
                 'ticket_id': primary_ticket.id,
                 'ticket_ids': [t.id for t in r_tickets],
@@ -439,7 +448,9 @@ class PosOrder(models.Model):
                 'round_key': f"round_{idx_r}_{primary_ticket.id}",
                 'is_current': is_current,
                 'title': round_title,
-                'kds_reference': kds_refs,
+                'pos_reference': pos_ref,
+                'tracking_number': tracking_num,
+                'kds_reference': f"#{tracking_num}" if tracking_num else pos_ref,
                 'barcode': primary_ticket.barcode or f'KDS{primary_ticket.id:06d}',
                 'created_at': fields.Datetime.to_string(r_tickets[0].create_date) if r_tickets[0].create_date else '',
                 'display_id': disp.id,
@@ -484,8 +495,13 @@ class PosOrder(models.Model):
         summary_label = current_stage_name
         summary_state = 'completed' if current_completed else 'in_progress'
 
+        pos_ref = self.pos_reference or self.name or ''
+        tracking_num = self.tracking_number or ''
+
         return {
             'order_id': self.id,
+            'pos_reference': pos_ref,
+            'tracking_number': tracking_num,
             'order_access_token': self.access_token or '',
             'is_cancelled': False,
             'has_kitchen': True,

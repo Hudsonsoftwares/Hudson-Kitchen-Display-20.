@@ -3,6 +3,7 @@ import { rpc } from "@web/core/network/rpc";
 import { _t } from "@web/core/l10n/translation";
 import { patch } from "@web/core/utils/patch";
 import { SelfOrder } from "@pos_self_order/app/services/self_order_service";
+import { LandingPage } from "@pos_self_order/app/pages/landing_page/landing_page";
 import { OrdersHistoryPage } from "@pos_self_order/app/pages/order_history_page/order_history_page";
 import { CartPage } from "@pos_self_order/app/pages/cart_page/cart_page";
 import { ConfirmationPage } from "@pos_self_order/app/pages/confirmation_page/confirmation_page";
@@ -18,6 +19,53 @@ export class KitchenOrderStatusCard extends Component {
     setup() {
         this.selfOrder = this.env.services.self_order;
         this.state = proxy({ expandedRounds: {} });
+    }
+
+    get order() {
+        return (this.selfOrder.models["pos.order"] || []).find((o) => o && o.access_token === this.props.orderAccessToken) || null;
+    }
+
+    get orderPosReference() {
+        return this.order?.pos_reference || this.status?.pos_reference || _t("Current Order");
+    }
+
+    get orderSubmeta() {
+        const order = this.order;
+        const trackingNum = order?.tracking_number || this.status?.tracking_number;
+        let dateStr = "";
+        if (order?.date_order) {
+            try {
+                dateStr = typeof order.date_order.toFormat === "function" ? order.date_order.toFormat("dd/MM/yyyy") : String(order.date_order);
+            } catch {
+                dateStr = "";
+            }
+        }
+        if (!dateStr && this.batches.length && this.batches[0].created_at) {
+            dateStr = this.formatBatchDate(this.batches[0].created_at);
+        }
+        if (trackingNum && dateStr) {
+            return `#${trackingNum} - ${dateStr}`;
+        } else if (trackingNum) {
+            return `#${trackingNum}`;
+        } else if (dateStr) {
+            return dateStr;
+        }
+        return "";
+    }
+
+    formatBatchDate(createdAt) {
+        if (!createdAt) return "";
+        try {
+            const iso = createdAt.replace(" ", "T") + "Z";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return "";
+            const day = String(d.getDate()).padStart(2, "0");
+            const month = String(d.getMonth() + 1).padStart(2, "0");
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        } catch {
+            return "";
+        }
     }
 
     toggleBatch(batch) {
@@ -308,6 +356,12 @@ patch(SelfOrder.prototype, {
             clearInterval(this._kitchenTrackingTimer);
             this._kitchenTrackingTimer = null;
         }
+    },
+});
+
+patch(LandingPage.prototype, {
+    clickMyOrder() {
+        this.router.navigate("orderHistory");
     },
 });
 
