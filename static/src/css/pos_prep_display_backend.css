@@ -3,22 +3,51 @@
    Matching Odoo Online / Enterprise Reference Design
    ========================================================================== */
 
-/* Kanban Container Width */
-.o_kanban_renderer.o_kanban_dashboard,
-.o_kanban_renderer:has(.o_prep_display_card) {
-    --KanbanRecord-width: 480px;
+/* Kanban Container Layout (2 equal full-width cards per row on desktop, 1 per row on mobile) */
+.o_prep_display_kanban .o_kanban_renderer.o_kanban_ungrouped,
+.o_kanban_renderer.o_kanban_ungrouped:has(.o_prep_display_card) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-content: start !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    padding: 12px 16px !important;
+    --KanbanRecord-width: 100%;
+    --KanbanRecord-margin-v: 0px;
+    --KanbanRecord-margin-h: 0px;
+}
+
+.o_prep_display_kanban .o_kanban_renderer.o_kanban_ungrouped > .o_kanban_ghost,
+.o_kanban_renderer.o_kanban_ungrouped:has(.o_prep_display_card) > .o_kanban_ghost {
+    display: none !important;
+}
+
+.o_prep_display_kanban .o_kanban_renderer.o_kanban_ungrouped > .o_view_nocontent,
+.o_kanban_renderer.o_kanban_ungrouped:has(.o_prep_display_card) > .o_view_nocontent {
+    grid-column: 1 / -1 !important;
+}
+
+@media (max-width: 991.98px) {
+    .o_prep_display_kanban .o_kanban_renderer.o_kanban_ungrouped,
+    .o_kanban_renderer.o_kanban_ungrouped:has(.o_prep_display_card) {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
 }
 
 /* --------------------------------------------------------------------------
    1. Base & LIGHT MODE (Default)
    -------------------------------------------------------------------------- */
-.o_prep_display_card,
-.o_kanban_record.o_prep_display_card,
-.o_kanban_record:has(.o_prep_display_card) {
-    min-width: 460px !important;
-    max-width: 500px !important;
-    width: 480px !important;
+.o_prep_display_kanban .o_prep_display_card,
+.o_prep_display_kanban .o_kanban_record.o_prep_display_card,
+.o_prep_display_kanban .o_kanban_record:not(.o_kanban_ghost):has(.o_prep_display_card),
+.o_kanban_record:not(.o_kanban_ghost):has(.o_prep_display_card) {
+    min-width: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
     min-height: 155px !important;
+    height: 100% !important;
     background-color: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px !important;

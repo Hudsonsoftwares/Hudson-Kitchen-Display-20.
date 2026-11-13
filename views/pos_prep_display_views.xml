@@ -6,6 +6,9 @@
         <field name="arch" type="xml">
             <form string="Preparation Display">
                 <sheet>
+                    <div class="alert alert-warning mb-3" role="status" invisible="pos_config_ids">
+                        <strong>No Point of Sale selected:</strong> this display will not receive any POS orders until you select at least one POS below.
+                    </div>
                     <div class="oe_title mb24">
                         <label for="name"/>
                         <h1>
@@ -15,8 +18,8 @@
                     <group>
                         <group name="pos_filtering" string="POS &amp; Categories">
                             <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
-                            <field name="pos_config_ids" widget="many2many_tags" placeholder="All" domain="[('company_id', '=', company_id)]"/>
-                            <field name="category_ids" widget="many2many_tags" placeholder="All"/>
+                            <field name="pos_config_ids" widget="many2many_tags" placeholder="Select Point of Sale (empty = none)" domain="[('company_id', '=', company_id)]"/>
+                            <field name="category_ids" widget="many2many_tags" placeholder="All Categories (select to restrict)"/>
                         </group>
                         <group name="workflow_printing" string="Workflow &amp; Printing">
                             <field name="auto_clear"/>
@@ -49,6 +52,7 @@
                 <field name="name"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="pos_config_ids" widget="many2many_tags"/>
+                <field name="category_ids" widget="many2many_tags"/>
                 <field name="stage_names"/>
                 <field name="in_progress_count"/>
                 <field name="average_time"/>
@@ -106,8 +110,8 @@
                                 </t>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between align-items-end mt-auto pt-2 w-100">
-                            <div class="d-flex gap-2">
+                        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mt-auto pt-2 w-100">
+                            <div class="d-flex flex-wrap gap-2">
                                 <button name="action_open_kitchen_screen" type="object"
                                         class="btn btn-sm px-3 fw-bold shadow-none o_prep_btn_primary">
                                     Preparation Screen

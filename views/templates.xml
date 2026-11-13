@@ -56,6 +56,14 @@
                         display: flex;
                         align-items: center;
                         gap: 6px;
+                        flex: 1;
+                        min-width: 0;
+                        overflow-x: auto;
+                        scrollbar-width: none;
+                        margin: 0 8px;
+                    }
+                    .kd-tabs::-webkit-scrollbar {
+                        display: none;
                     }
                     .kd-tab {
                         background: transparent;
@@ -69,6 +77,8 @@
                         display: inline-flex;
                         align-items: center;
                         gap: 8px;
+                        flex-shrink: 0;
+                        white-space: nowrap;
                         transition: all 0.15s ease;
                     }
                     .kd-tab:hover {
@@ -322,23 +332,35 @@
                     /* Stage Canvas */
                     .kd-canvas {
                         flex: 1;
+                        min-width: 0;
                         background: #737686;
-                        padding: 20px;
+                        padding: 14px;
                         overflow-y: auto;
-                        display: flex;
-                        flex-wrap: wrap;
-                        align-content: flex-start;
-                        align-items: flex-start;
-                        gap: 16px;
+                        overflow-x: hidden;
                     }
-                    /* Order Card (Compact Small Card matching screenshot) */
+                    .kd-masonry {
+                        display: grid;
+                        grid-template-columns: repeat(var(--kd-cols, 4), minmax(0, 1fr));
+                        align-items: stretch;
+                        gap: 14px;
+                        width: 100%;
+                    }
+                    .kd-masonry-col {
+                        flex: 1 1 0;
+                        min-width: 0;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 14px;
+                    }
+                    /* Order Card (Full grid cell width, even left-to-right ascending rows) */
                     .kd-order-card {
                         background: #ffffff;
                         border-radius: 6px;
                         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-                        width: 275px;
-                        min-width: 275px;
-                        max-width: 275px;
+                        width: 100%;
+                        min-width: 0;
+                        max-width: none;
+                        height: 100%;
                         overflow: hidden;
                         display: flex;
                         flex-direction: column;
@@ -365,14 +387,15 @@
                         padding: 10px 14px 14px 14px;
                         display: flex;
                         flex-direction: column;
+                        flex: 1;
                     }
                     .kd-table-title {
-                        font-size: 18px;
+                        font-size: calc(18px * var(--kd-zoom, 1));
                         font-weight: 700;
                         color: #1e293b;
                     }
                     .kd-guest-count {
-                        font-size: 14px;
+                        font-size: calc(14px * var(--kd-zoom, 1));
                         font-weight: 700;
                         color: #1e293b;
                         display: inline-flex;
@@ -381,8 +404,10 @@
                     }
                     .kd-badges-row {
                         display: flex;
+                        flex-wrap: wrap;
                         justify-content: space-between;
                         align-items: center;
+                        gap: 6px;
                         margin-bottom: 12px;
                     }
                     .kd-badge-preset {
@@ -390,7 +415,7 @@
                         color: #ffffff;
                         padding: 3px 12px;
                         border-radius: 14px;
-                        font-size: 12px;
+                        font-size: calc(12px * var(--kd-zoom, 1));
                         font-weight: 600;
                         letter-spacing: 0.2px;
                     }
@@ -400,7 +425,7 @@
                         border: 1px solid #cbd5e1;
                         padding: 2px 8px;
                         border-radius: 14px;
-                        font-size: 13px;
+                        font-size: calc(13px * var(--kd-zoom, 1));
                         font-weight: 600;
                         display: inline-flex;
                         align-items: center;
@@ -451,11 +476,12 @@
                         display: flex;
                         flex-direction: column;
                         flex-grow: 1;
+                        min-width: 0;
                     }
                     .kd-line-text {
                         display: flex;
                         align-items: baseline;
-                        font-size: 14px;
+                        font-size: calc(14px * var(--kd-zoom, 1));
                         line-height: 1.4;
                         color: #1e293b;
                         font-weight: 500;
@@ -469,6 +495,8 @@
                     .kd-line-name {
                         color: #1e293b;
                         font-weight: 500;
+                        min-width: 0;
+                        overflow-wrap: anywhere;
                     }
                     .kd-line-note {
                         display: inline-block;
@@ -686,17 +714,21 @@
                         let stages = [];
                         let orders = [];
                         let categories = [];
-                        let currentTab = "to_cook";
+                        let currentTab = null;
                         let currentTimeFilter = "all";
                         let currentPresetFilter = "all";
                         let currentCategoryFilter = "all";
                         let zoomScale = 1;
-                        let doneLines = JSON.parse(localStorage.getItem("hkd_done_lines") || "{}");
+                        let pendingLineOverrides = {};
+                        let inFlightOrderIds = new Set();
+                        let loadRequestSeq = 0;
+                        let lastMutationEnd = 0;
                         let soundEnabled = localStorage.getItem("hkd_sound_enabled") !== "0";
                         let audioCtx = null;
                         let previousOrderStages = {};
                         let initialLoad = true;
                         let lastMovedAction = null;
+                        let lastRenderedCols = 0;
 
                         function getAudioContext() {
                             if (!audioCtx) {
@@ -905,8 +937,10 @@
                         window.testKitchenSound = playSound;
 
                         function isLineDone(lineId, backendDone) {
-                            if (backendDone) return true;
-                            return !!doneLines[lineId];
+                            if (Object.prototype.hasOwnProperty.call(pendingLineOverrides, lineId)) {
+                                return !!pendingLineOverrides[lineId];
+                            }
+                            return !!backendDone;
                         }
 
                         async function rpc(route, params) {
@@ -928,17 +962,28 @@
                             return data.result;
                         }
 
+                        function escapeHtml(val) {
+                            return String(val == null ? "" : val)
+                                .replace(/&/g, "&amp;")
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;")
+                                .replace(/"/g, "&quot;")
+                                .replace(/'/g, "&#39;");
+                        }
+
+                        function ensureValidTab() {
+                            if (currentTab === "all") return;
+                            const exists = currentTab !== null && stages.some(s => String(s.id) === String(currentTab));
+                            if (!exists) {
+                                currentTab = stages.length ? String(stages[0].id) : "all";
+                            }
+                        }
+
                         function renderTabs() {
                             const container = document.getElementById("kd-tabs-container");
                             if (!container) return;
 
-                            const toCookStage = stages.find(s => s.name.toLowerCase().includes("cook")) || stages[0];
-                            const readyStage = stages.find(s => s.name.toLowerCase().includes("ready")) || (stages.length > 1 ? stages[1] : null);
-                            const completedStage = stages.find(s => s.name.toLowerCase().includes("complete")) || (stages.length > 2 ? stages[2] : null);
-
-                            const countToCook = orders.filter(o => toCookStage && o.stage_id === toCookStage.id).length;
-                            const countReady = orders.filter(o => readyStage && o.stage_id === readyStage.id).length;
-                            const countCompleted = orders.filter(o => completedStage && o.stage_id === completedStage.id).length;
+                            ensureValidTab();
 
                             let html = `
                                 <button class="kd-tab ${currentTab === 'all' ? 'active' : ''}" data-tab="all">
@@ -946,30 +991,25 @@
                                 </button>
                             `;
 
-                            if (toCookStage) {
+                            stages.forEach((s, idx) => {
+                                const count = orders.filter(o => o.stage_id === s.id).length;
+                                const isLast = stages.length > 1 && idx === stages.length - 1;
+                                const isActive = String(currentTab) === String(s.id);
+                                let badgeClass = "kd-badge-blue";
+                                let extraTabClass = "";
+                                if (idx === 0) {
+                                    badgeClass = "kd-badge-default";
+                                } else if (isLast) {
+                                    badgeClass = "kd-badge-green";
+                                    extraTabClass = "tab-completed";
+                                }
                                 html += `
-                                    <button class="kd-tab ${currentTab === 'to_cook' ? 'active' : ''}" data-tab="to_cook">
-                                        ${toCookStage.name}
-                                        <span class="kd-tab-badge kd-badge-default">${countToCook}</span>
+                                    <button class="kd-tab ${extraTabClass} ${isActive ? 'active' : ''}" data-tab="${s.id}">
+                                        ${escapeHtml(s.name)}
+                                        <span class="kd-tab-badge ${badgeClass}">${count}</span>
                                     </button>
                                 `;
-                            }
-                            if (readyStage) {
-                                html += `
-                                    <button class="kd-tab ${currentTab === 'ready' ? 'active' : ''}" data-tab="ready">
-                                        ${readyStage.name}
-                                        <span class="kd-tab-badge kd-badge-blue">${countReady}</span>
-                                    </button>
-                                `;
-                            }
-                            if (completedStage) {
-                                html += `
-                                    <button class="kd-tab ${currentTab === 'completed' ? 'active' : ''}" data-tab="completed">
-                                        ${completedStage.name}
-                                        <span class="kd-tab-badge kd-badge-green">${countCompleted}</span>
-                                    </button>
-                                `;
-                            }
+                            });
 
                             container.innerHTML = html;
 
@@ -1026,7 +1066,7 @@
                                 const matchingOrders = orders.filter(o => o.category_ids && o.category_ids.includes(c.id)).length;
                                 html += `
                                     <div class="kd-side-row ${String(currentCategoryFilter) === String(c.id) ? 'active' : ''}" data-category="${c.id}">
-                                        <span>${cName}</span>
+                                        <span>${escapeHtml(cName)}</span>
                                         <span>${matchingOrders}</span>
                                     </div>
                                 `;
@@ -1123,22 +1163,45 @@
                             }
                         });
 
+                        function getColumnCount(width) {
+                            if (width >= 1680) return 5;
+                            if (width >= 1020) return 4;
+                            if (width >= 720) return 3;
+                            if (width >= 460) return 2;
+                            return 1;
+                        }
+
+                        function getOrderDisplayNum(o) {
+                            return String(
+                                o.display_number ||
+                                o.tracking_number ||
+                                o.table_number ||
+                                (o.pos_reference ? o.pos_reference.split(" ").slice(-1)[0] : "") ||
+                                o.id ||
+                                ""
+                            ).trim();
+                        }
+
+                        function compareOrdersAscending(a, b) {
+                            const keyA = getOrderDisplayNum(a);
+                            const keyB = getOrderDisplayNum(b);
+                            const cmp = keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: "base" });
+                            if (cmp !== 0) return cmp;
+                            const dtCmp = String(a.create_date || "").localeCompare(String(b.create_date || ""));
+                            if (dtCmp !== 0) return dtCmp;
+                            return (Number(a.id) || 0) - (Number(b.id) || 0);
+                        }
+
                         function renderCards() {
                             const canvas = document.getElementById("kd-canvas");
                             if (!canvas) return;
 
-                            const toCookStage = stages.find(s => s.name.toLowerCase().includes("cook")) || stages[0];
-                            const readyStage = stages.find(s => s.name.toLowerCase().includes("ready")) || (stages.length > 1 ? stages[1] : null);
-                            const completedStage = stages.find(s => s.name.toLowerCase().includes("complete")) || (stages.length > 2 ? stages[2] : null);
+                            ensureValidTab();
 
                             let filtered = orders;
-                            if (currentTab === "to_cook" && toCookStage) {
-                                filtered = filtered.filter(o => o.stage_id === toCookStage.id);
-                            } else if (currentTab === "ready" && readyStage) {
-                                filtered = filtered.filter(o => o.stage_id === readyStage.id);
-                            } else if (currentTab === "completed" && completedStage) {
-                                filtered = filtered.filter(o => o.stage_id === completedStage.id);
-                            } else if (currentTab === "all") {
+                            if (currentTab && currentTab !== "all") {
+                                filtered = filtered.filter(o => String(o.stage_id) === String(currentTab));
+                            } else {
                                 filtered = orders.slice();
                             }
 
@@ -1163,8 +1226,14 @@
                                 return;
                             }
 
-                            canvas.innerHTML = filtered.map((o, idx) => {
-                                const tableDisp = o.table_number || (o.pos_reference ? o.pos_reference.split(" ").slice(-1)[0] : "");
+                            filtered.sort(compareOrdersAscending);
+
+                            const colCount = getColumnCount(canvas.clientWidth || window.innerWidth || 1280);
+                            lastRenderedCols = colCount;
+                            const cardsHtml = [];
+
+                            filtered.forEach((o, idx) => {
+                                const tableDisp = getOrderDisplayNum(o);
                                 const guests = o.customer_count || 1;
                                 const timer = (o.minutes_ago !== undefined && !isNaN(o.minutes_ago)) ? Math.max(0, Math.abs(o.minutes_ago)) : 0;
                                 const fulfillment = (o.fulfillment_type === "takeout" ? "Takeout" : (o.fulfillment_type === "delivery" ? "Delivery" : "Dine In"));
@@ -1173,29 +1242,54 @@
                                 const stageObj = stages.find(s => s.id === o.stage_id);
                                 const isLate = !!(stageObj && stageObj.alert_timer > 0 && timer >= stageObj.alert_timer);
 
-                                const linesHtml = (o.lines || []).map(l => {
+                                const renderLineItem = (l) => {
                                     const isDone = isLineDone(l.id, l.is_done);
                                     return `
                                         <li class="kd-line-item ${isDone ? 'is-done' : ''}" data-line-id="${l.id}">
                                             <div class="kd-line-content">
                                                 <div class="kd-line-text">
+                                                    ${l.course_name ? `<span class="kd-line-course" style="background:#e0e7ff; color:#3730a3; font-size:11px; font-weight:800; padding:2px 7px; border-radius:4px; margin-right:6px; letter-spacing:0.5px; text-transform:uppercase;">${escapeHtml(l.course_name)}</span>` : ''}
                                                     <span class="kd-line-qty">${l.qty}x</span>
-                                                    <span class="kd-line-name">${l.name}</span>
+                                                    <span class="kd-line-name">${escapeHtml(l.name)}</span>
                                                     ${isDone ? '<span style="color:#10b981; font-weight:bold; font-size:14px; margin-left:4px;">✓</span>' : ''}
                                                 </div>
-                                                ${l.note ? `<span class="kd-line-note">${l.note}</span>` : ''}
+                                                ${l.note ? `<span class="kd-line-note" style="display:inline-block; font-size:12px; font-weight:700; color:#b45309; background:#fef3c7; padding:2px 8px; border-radius:4px; margin-top:4px; border:1px solid #fde68a;">📝 ${escapeHtml(l.note)}</span>` : ''}
                                             </div>
                                         </li>
                                     `;
-                                }).join("");
+                                };
+
+                                const orderLinesList = o.lines || [];
+                                const distinctCats = Array.from(new Set(orderLinesList.map(l => l.category_name || 'Other')));
+                                let linesHtml = "";
+                                if (distinctCats.length > 1) {
+                                    const byCat = new Map();
+                                    orderLinesList.forEach(l => {
+                                        const cName = l.category_name || 'Other';
+                                        if (!byCat.has(cName)) byCat.set(cName, []);
+                                        byCat.get(cName).push(l);
+                                    });
+                                    linesHtml = Array.from(byCat.entries()).map(([catName, catLines]) => `
+                                        <li style="list-style:none; margin-top:6px; margin-bottom:2px; padding:2px 6px; font-size:11px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; color:#475569; background:#f1f5f9; border-radius:4px;">
+                                            ${escapeHtml(catName)}
+                                        </li>
+                                        ${catLines.map(renderLineItem).join("")}
+                                    `).join("");
+                                } else {
+                                    linesHtml = orderLinesList.map(renderLineItem).join("");
+                                }
+
+                                const batchPill = (o.batch_total && o.batch_total > 1)
+                                    ? `<span style="background:#e0f2fe; color:#0369a1; font-size:11px; font-weight:800; padding:2px 7px; border-radius:10px; margin-left:4px;">#${o.batch_number}/${o.batch_total}</span>`
+                                    : "";
 
                                 const isTeal = (idx % 2 === 1);
                                 const headerBg = isTeal ? "background: #80cbc4;" : "background: #ffffff;";
 
-                                const stageTag = (currentTab === "all" && stageObj) ? `<span style="background:rgba(0,0,0,0.08); font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${stageObj.name}</span>` : "";
+                                const stageTag = (currentTab === "all" && stageObj) ? `<span style="background:rgba(0,0,0,0.08); font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">${escapeHtml(stageObj.name)}</span>` : "";
 
                                 const stageIdx = stages.findIndex(s => s.id === o.stage_id);
-                                const isLastStage = (stageIdx === stages.length - 1) || (stageObj && stageObj.name.toLowerCase().includes("complete"));
+                                const isLastStage = stageIdx !== -1 && stageIdx === stages.length - 1;
                                 const nextStage = (stageIdx !== -1 && stageIdx + 1 < stages.length) ? stages[stageIdx + 1] : null;
 
                                 let footerHtml = "";
@@ -1212,12 +1306,12 @@
                                     `;
                                 }
 
-                                return `
+                                const cardHtml = `
                                     <div class="kd-order-card" data-order-id="${o.id}">
                                         <div class="kd-card-header-bar" style="${headerBg}" title="Click header to advance entire order">
-                                            <span class="kd-table-title">${tableDisp}</span>
+                                            <span class="kd-table-title">${escapeHtml(tableDisp)}${batchPill}</span>
                                             <div style="display:flex; align-items:center; gap:6px;">
-                                                <button class="kd-card-print-btn" data-order-id="${o.id}" title="Print Kitchen Ticket (${barcode})">
+                                                <button class="kd-card-print-btn" data-order-id="${o.id}" title="Print Kitchen Ticket (${escapeHtml(barcode)})">
                                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
                                                 </button>
                                                 ${stageTag}
@@ -1230,7 +1324,7 @@
                                         <div class="kd-card-body">
                                             <div class="kd-badges-row">
                                                 <span class="kd-badge-preset">${fulfillment}</span>
-                                                <span class="kd-card-barcode">${barcode}</span>
+                                                <span class="kd-card-barcode">${escapeHtml(barcode)}</span>
                                                 <span class="kd-badge-timer ${isLate ? 'late' : ''}" title="${isLate ? 'Alert: Order waited past stage time limit' : ''}">&#128337; ${timer}'</span>
                                             </div>
                                             <ul class="kd-order-lines">
@@ -1240,7 +1334,10 @@
                                         ${footerHtml}
                                     </div>
                                 `;
-                            }).join("");
+                                cardsHtml.push(cardHtml);
+                            });
+
+                            canvas.innerHTML = `<div class="kd-masonry" data-cols="${colCount}" style="--kd-cols:${colCount}">${cardsHtml.join("")}</div>`;
 
                             // Print ticket buttons
                             canvas.querySelectorAll(".kd-card-print-btn").forEach(btn => {
@@ -1251,34 +1348,32 @@
                                 };
                             });
 
-                            // Click individual food line to toggle done
+                            // Click individual food line to toggle done (server handles single-step stage advance atomically)
                             canvas.querySelectorAll(".kd-line-item").forEach(item => {
                                 item.onclick = async (e) => {
                                     e.stopPropagation();
                                     const lineId = item.dataset.lineId;
                                     const card = item.closest(".kd-order-card");
-                                    const orderId = card ? card.dataset.orderId : null;
-                                    if (!lineId) return;
+                                    const orderId = card ? String(card.dataset.orderId) : null;
+                                    if (!lineId || !orderId || inFlightOrderIds.has(orderId)) return;
 
+                                    inFlightOrderIds.add(orderId);
+                                    const order = orders.find(o => String(o.id) === orderId);
+                                    const lineObj = order && order.lines ? order.lines.find(l => String(l.id) === String(lineId)) : null;
+                                    const currentDone = isLineDone(lineId, lineObj ? lineObj.is_done : false);
+                                    pendingLineOverrides[lineId] = !currentDone;
                                     playSound("line_done");
-                                    doneLines[lineId] = !doneLines[lineId];
-                                    localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
                                     renderCards();
 
                                     try {
-                                        await rpc("/hudson_kitchen_display/toggle_line", { line_id: lineId });
-                                    } catch (err) {}
-
-                                    const order = orders.find(o => String(o.id) === String(orderId));
-                                    if (order && order.lines) {
-                                        const allDone = order.lines.every(line => isLineDone(line.id, line.is_done));
-                                        if (allDone) {
-                                            const currentIdx = stages.findIndex(s => s.id === order.stage_id);
-                                            if (currentIdx !== -1 && currentIdx + 1 < stages.length) {
-                                                const nextStage = stages[currentIdx + 1];
+                                        const res = await rpc("/hudson_kitchen_display/toggle_line", { line_id: lineId });
+                                        delete pendingLineOverrides[lineId];
+                                        if (res && res.advanced && order) {
+                                            const nextStage = stages.find(s => String(s.id) === String(res.stage_id));
+                                            if (nextStage) {
                                                 const sName = (nextStage.name || "").toLowerCase();
-                                                const isCompleted = sName.includes("complete") || sName.includes("finish") || (currentIdx + 1 === stages.length - 1 && stages.length >= 2);
-
+                                                const nIdx = stages.indexOf(nextStage);
+                                                const isCompleted = sName.includes("complete") || sName.includes("finish") || (nIdx === stages.length - 1 && stages.length >= 2);
                                                 if (isCompleted) {
                                                     playSound("completed");
                                                     syncOrderToTracking("ready", order, order.id);
@@ -1286,22 +1381,23 @@
                                                     playSound("ready");
                                                     syncOrderToTracking("preparing", order, order.id);
                                                 }
-                                                order.lines.forEach(line => delete doneLines[line.id]);
-                                                localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
                                                 lastMovedAction = {
                                                     orderId: order.id,
                                                     fromStageId: order.stage_id,
                                                     toStageId: nextStage.id,
                                                     timestamp: Date.now()
                                                 };
-                                                await rpc("/hudson_kitchen_display/change_stage", {
-                                                    order_id: order.id,
-                                                    stage_id: nextStage.id
-                                                });
                                             }
                                         }
+                                        lastMutationEnd = Date.now();
+                                        await loadData({ force: true });
+                                    } catch (err) {
+                                        delete pendingLineOverrides[lineId];
+                                        console.error("Toggle line error:", err);
+                                        renderCards();
+                                    } finally {
+                                        inFlightOrderIds.delete(orderId);
                                     }
-                                    await loadData();
                                 };
                             });
 
@@ -1344,20 +1440,26 @@
                             canvas.querySelectorAll(".btn-reset").forEach(btn => {
                                 btn.onclick = async (e) => {
                                     e.stopPropagation();
+                                    const orderId = String(btn.dataset.orderId || "");
+                                    if (!orderId || inFlightOrderIds.has(orderId)) return;
+                                    inFlightOrderIds.add(orderId);
                                     playSound("reset");
-                                    const orderId = btn.dataset.orderId;
-                                    const order = orders.find(o => String(o.id) === String(orderId));
+                                    const order = orders.find(o => String(o.id) === orderId);
                                     if (order) {
                                         if (order.lines) {
-                                            order.lines.forEach(line => delete doneLines[line.id]);
-                                            localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
+                                            order.lines.forEach(line => delete pendingLineOverrides[line.id]);
                                         }
                                         // Resetting back to initial stage: remove from customer tracking display
                                         syncOrderToTracking("done", order, orderId);
                                     }
                                     btn.disabled = true;
-                                    await rpc("/hudson_kitchen_display/reset_order", { order_id: orderId });
-                                    await loadData();
+                                    try {
+                                        await rpc("/hudson_kitchen_display/reset_order", { order_id: orderId });
+                                        lastMutationEnd = Date.now();
+                                        await loadData({ force: true });
+                                    } finally {
+                                        inFlightOrderIds.delete(orderId);
+                                    }
                                 };
                             });
 
@@ -1365,9 +1467,11 @@
                             canvas.querySelectorAll(".btn-done").forEach(btn => {
                                 btn.onclick = async (e) => {
                                     e.stopPropagation();
+                                    const orderId = String(btn.dataset.orderId || "");
+                                    if (!orderId || inFlightOrderIds.has(orderId)) return;
+                                    inFlightOrderIds.add(orderId);
                                     playSound("done");
-                                    const orderId = btn.dataset.orderId;
-                                    const order = orders.find(o => String(o.id) === String(orderId));
+                                    const order = orders.find(o => String(o.id) === orderId);
                                     lastMovedAction = {
                                         orderId: orderId,
                                         fromStageId: order ? order.stage_id : null,
@@ -1381,23 +1485,31 @@
                                     btn.disabled = true;
                                     const card = btn.closest(".kd-order-card");
                                     if (card) card.style.opacity = "0.3";
-                                    await rpc("/hudson_kitchen_display/mark_done", { order_id: orderId });
-                                    await loadData();
+                                    try {
+                                        await rpc("/hudson_kitchen_display/mark_done", { order_id: orderId });
+                                        lastMutationEnd = Date.now();
+                                        await loadData({ force: true });
+                                    } finally {
+                                        inFlightOrderIds.delete(orderId);
+                                    }
                                 };
                             });
 
-                            // Click card header bar to advance entire order
+                            // Click card header bar to advance entire order by strictly 1 stage
                             canvas.querySelectorAll(".kd-card-header-bar").forEach(header => {
                                 header.onclick = async (e) => {
                                     e.stopPropagation();
                                     const card = header.closest(".kd-order-card");
                                     if (!card) return;
-                                    const orderId = card.dataset.orderId;
-                                    const order = orders.find(o => String(o.id) === String(orderId));
+                                    const orderId = String(card.dataset.orderId || "");
+                                    if (!orderId || inFlightOrderIds.has(orderId)) return;
+                                    const order = orders.find(o => String(o.id) === orderId);
                                     if (!order) return;
 
                                     const currentIdx = stages.findIndex(s => s.id === order.stage_id);
                                     if (currentIdx !== -1 && currentIdx + 1 < stages.length) {
+                                        inFlightOrderIds.add(orderId);
+                                        const expectedStageId = order.stage_id;
                                         const nextStage = stages[currentIdx + 1];
                                         const sName = (nextStage.name || "").toLowerCase();
                                         const isCompleted = sName.includes("complete") || sName.includes("finish") || (currentIdx + 1 === stages.length - 1 && stages.length >= 2);
@@ -1411,28 +1523,45 @@
                                         }
                                         card.style.opacity = "0.5";
                                         if (order.lines) {
-                                            order.lines.forEach(line => delete doneLines[line.id]);
-                                            localStorage.setItem("hkd_done_lines", JSON.stringify(doneLines));
+                                            order.lines.forEach(line => delete pendingLineOverrides[line.id]);
                                         }
                                         lastMovedAction = {
                                             orderId: order.id,
-                                            fromStageId: order.stage_id,
+                                            fromStageId: expectedStageId,
                                             toStageId: nextStage.id,
                                             timestamp: Date.now()
                                         };
-                                        await rpc("/hudson_kitchen_display/change_stage", {
-                                            order_id: order.id,
-                                            stage_id: nextStage.id
-                                        });
-                                        await loadData();
+                                        try {
+                                            await rpc("/hudson_kitchen_display/change_stage", {
+                                                order_id: order.id,
+                                                stage_id: nextStage.id,
+                                                expected_stage_id: expectedStageId
+                                            });
+                                            lastMutationEnd = Date.now();
+                                            await loadData({ force: true });
+                                        } finally {
+                                            inFlightOrderIds.delete(orderId);
+                                        }
                                     }
                                 };
                             });
                         }
 
-                        async function loadData() {
+                        async function loadData(opts = {}) {
+                            const force = Boolean(opts && opts.force);
+                            if (!force && inFlightOrderIds.size > 0) {
+                                return; // Avoid background polling racing with active manual stage mutations
+                            }
+                            const reqSeq = ++loadRequestSeq;
+                            const startedAt = Date.now();
                             try {
                                 const data = await rpc("/hudson_kitchen_display/get_orders", { display_id: displayId });
+                                if (reqSeq !== loadRequestSeq) {
+                                    return; // Newer load already running
+                                }
+                                if (!force && (inFlightOrderIds.size > 0 || startedAt < lastMutationEnd)) {
+                                    return; // Mutation ran while this poll was in flight - discard stale snapshot
+                                }
                                 if (data) {
                                     stages = data.stages || [];
                                     const newOrders = data.orders || [];
@@ -1450,11 +1579,13 @@
                                                 const newSeq = newStage ? newStage.sequence : 0;
                                                 const prevSeq = prevStage ? prevStage.sequence : 0;
 
-                                                if (newStage && newStage.name.toLowerCase().includes("complete")) {
+                                                const lastStageId = stages.length ? stages[stages.length - 1].id : null;
+                                                const firstStageId = stages.length ? stages[0].id : null;
+                                                if (newStage && (newStage.id === lastStageId || newStage.name.toLowerCase().includes("complete"))) {
                                                     playSound("completed");
                                                 } else if (newStage && newStage.name.toLowerCase().includes("ready")) {
                                                     playSound("ready");
-                                                } else if (newSeq < prevSeq) {
+                                                } else if (newSeq < prevSeq || (newStage && newStage.id === firstStageId)) {
                                                     playSound("reset");
                                                 } else {
                                                     playSound("ready");
@@ -1495,8 +1626,19 @@
                         if (btnToggleSidebar && sidebar) {
                             btnToggleSidebar.onclick = () => {
                                 sidebar.classList.toggle("collapsed");
+                                renderCards();
                             };
                         }
+
+                        window.addEventListener("resize", () => {
+                            const canvas = document.getElementById("kd-canvas");
+                            if (!canvas) return;
+                            const colsNow = getColumnCount(canvas.clientWidth || window.innerWidth || 1280);
+                            if (colsNow !== lastRenderedCols) {
+                                lastRenderedCols = colsNow;
+                                renderCards();
+                            }
+                        });
 
                         const btnClose = document.getElementById("btn-close");
                         if (btnClose) btnClose.onclick = exitScreen;
@@ -1613,10 +1755,10 @@
                         const btnClearAll = document.getElementById("btn-clear-all");
                         if (btnClearAll) {
                             btnClearAll.onclick = async () => {
-                                let activeStage = null;
-                                if (currentTab === "to_cook") activeStage = stages.find(s => s.name.toLowerCase().includes("cook")) || stages[0];
-                                else if (currentTab === "ready") activeStage = stages.find(s => s.name.toLowerCase().includes("ready")) || (stages.length > 1 ? stages[1] : null);
-                                else if (currentTab === "completed") activeStage = stages.find(s => s.name.toLowerCase().includes("complete")) || (stages.length > 2 ? stages[2] : null);
+                                ensureValidTab();
+                                const activeStage = (currentTab && currentTab !== "all")
+                                    ? stages.find(s => String(s.id) === String(currentTab))
+                                    : null;
 
                                 if (activeStage) {
                                     const nextIdx = stages.indexOf(activeStage) + 1;
@@ -1643,8 +1785,7 @@
                             btnZoomIn.onclick = () => {
                                 zoomScale = Math.min(zoomScale + 0.1, 1.4);
                                 const canvas = document.getElementById("kd-canvas");
-                                if (canvas) canvas.style.transform = `scale(${zoomScale})`;
-                                if (canvas) canvas.style.transformOrigin = "top left";
+                                if (canvas) canvas.style.setProperty("--kd-zoom", zoomScale);
                             };
                         }
 
@@ -1653,8 +1794,7 @@
                             btnZoomOut.onclick = () => {
                                 zoomScale = Math.max(zoomScale - 0.1, 0.8);
                                 const canvas = document.getElementById("kd-canvas");
-                                if (canvas) canvas.style.transform = `scale(${zoomScale})`;
-                                if (canvas) canvas.style.transformOrigin = "top left";
+                                if (canvas) canvas.style.setProperty("--kd-zoom", zoomScale);
                             };
                         }
 

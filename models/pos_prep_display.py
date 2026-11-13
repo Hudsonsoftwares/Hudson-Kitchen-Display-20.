@@ -14,8 +14,8 @@ class PosPrepDisplay(models.Model):
     pos_config_ids = fields.Many2many(
         'pos.config', string='Point of Sale',
         domain="[('company_id', '=', company_id)]",
-        help='Orders from these Point of Sale configs will be pushed to this display. '
-             'Leave empty to receive orders from every POS in this company.')
+        help='Only orders from the selected Point of Sale configs will be pushed to this display. '
+             'Leave empty if you do not want this display to receive orders yet.')
     category_ids = fields.Many2many(
         'pos.category', string='Product categories',
         help='Only order lines whose product belongs to one of these categories will '
@@ -98,6 +98,25 @@ class PosPrepDisplay(models.Model):
                     (0, 0, {'name': 'Completed', 'sequence': 3, 'color': '#55BA53', 'alert_timer': 0}),
                 ]})
         return displays
+
+    def unlink(self):
+        if self.ids:
+            KitchenOrder = self.env['pos.kitchen.order'].sudo().with_context(active_test=False)
+            StageLog = self.env['pos.kitchen.order.stage.log'].sudo()
+            stage_ids = self.sudo().mapped('stage_ids').ids
+            order_domain = [('display_id', 'in', self.ids)]
+            if stage_ids:
+                order_domain = ['|'] + order_domain + [('stage_id', 'in', stage_ids)]
+            orders = KitchenOrder.search(order_domain)
+            log_domain = [('prep_order_id', 'in', orders.ids)] if orders else []
+            if stage_ids:
+                stage_log_leaf = ('stage_id', 'in', stage_ids)
+                log_domain = (['|'] + log_domain + [stage_log_leaf]) if log_domain else [stage_log_leaf]
+            if log_domain:
+                StageLog.search(log_domain).unlink()
+            if orders:
+                orders.unlink()
+        return super().unlink()
 
     def action_reset_all_orders(self):
         self.ensure_one()

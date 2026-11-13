@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="hudson_kitchen_display.KitchenOrderStatusCard">
+        <div t-if="this.hasDisplays" class="hkd_self_status_box text-start" t-on-click.stop="() => {}">
+            <div class="hkd_self_batches_summary">
+                <span class="hkd_self_batches_summary_label">
+                    <span class="hkd_self_live_dot"/>
+                    <span>Kitchen Order Status</span>
+                </span>
+            </div>
+            <t t-foreach="this.batches" t-as="batch" t-key="batch.round_key || batch.ticket_id">
+                <div t-attf-class="hkd_self_status_station hkd_self_status_station--card hkd_self_status_station--current #{this.getStationThemeClass(batch)} hkd_self_status_station--expanded">
+                    
+                    <!-- Header -->
+                    <div class="hkd_self_status_header hkd_self_status_header--current">
+                        <div class="hkd_self_status_title_wrap">
+                            <span t-attf-class="hkd_self_icon_badge #{this.getPillClass(batch)}">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                            </span>
+                            <div class="hkd_self_title_meta">
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="hkd_self_status_title" t-out="this.getBatchTitle(batch)"/>
+                                    <span class="badge rounded-pill text-bg-primary px-1 py-0" style="font-size: 0.65rem; font-weight: 700;">CURRENT</span>
+                                </div>
+                                <div class="hkd_self_batch_submeta">
+                                    <span t-if="batch.kds_reference" class="hkd_self_kds_ref">
+                                        <t t-out="batch.kds_reference"/>
+                                    </span>
+                                    <span t-if="batch.created_at" class="hkd_self_batch_time">
+                                        • <t t-out="this.formatBatchTime(batch.created_at)"/>
+                                    </span>
+                                    <span t-if="batch.total_qty" class="hkd_self_batch_count">
+                                        • <t t-out="batch.total_qty"/> <t t-if="batch.total_qty === 1">item</t><t t-else="">items</t>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hkd_self_header_right">
+                            <span t-attf-class="hkd_self_status_pill #{this.getPillClass(batch)}" t-out="batch.current_stage_name"/>
+                        </div>
+                    </div>
+
+                    <!-- Body: Stepper and Foods list (Always open for Current Order) -->
+                    <!-- Stepper Progress Track -->
+                    <div t-if="batch.stages and batch.stages.length" class="hkd_self_stepper">
+                        <t t-foreach="batch.stages" t-as="stage" t-key="stage.id">
+                            <div t-attf-class="hkd_self_step #{this.getStepClasses(batch, stage, stage_index)}">
+                                <div class="hkd_self_step_track">
+                                    <div t-attf-class="hkd_self_step_line #{stage_index === 0 ? 'hkd_self_step_line--hidden' : (this.isLeftLineFilled(batch, stage_index) ? 'hkd_self_step_line--filled' : '')}"/>
+                                    <div class="hkd_self_step_dot">
+                                        <t t-if="stage.state === 'done'">&#10003;</t>
+                                        <t t-else="" t-out="stage_index + 1"/>
+                                    </div>
+                                    <div t-attf-class="hkd_self_step_line #{stage_index === batch.stages.length - 1 ? 'hkd_self_step_line--hidden' : (this.isRightLineFilled(batch, stage_index) ? 'hkd_self_step_line--filled' : '')}"/>
+                                </div>
+                                <div class="hkd_self_step_label" t-out="stage.name"/>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Ordered Foods breakdown -->
+                    <div t-if="batch.categories and batch.categories.length" class="hkd_self_cat_groups">
+                        <t t-foreach="batch.categories" t-as="cat" t-key="cat.category_id">
+                            <div class="hkd_self_cat_group">
+                                <div class="hkd_self_cat_header">
+                                    <span class="hkd_self_cat_badge" t-out="cat.category_name"/>
+                                    <span class="hkd_self_cat_count">
+                                        <t t-out="cat.total_qty"/> <t t-if="cat.total_qty === 1">item</t><t t-else="">items</t>
+                                    </span>
+                                </div>
+                                <div class="hkd_self_cat_items">
+                                    <t t-foreach="cat.lines" t-as="kl" t-key="kl.id">
+                                        <div t-attf-class="hkd_self_cat_item #{kl.is_done ? 'hkd_self_cat_item--done' : ''}">
+                                            <span class="hkd_self_cat_item_main">
+                                                <span class="hkd_self_cat_qty" t-out="`${kl.qty}x`"/>
+                                                <span class="hkd_self_cat_item_name" t-out="kl.name"/>
+                                            </span>
+                                            <span t-if="kl.note" class="hkd_self_cat_item_note text-muted small ms-2 fst-italic">
+                                                (<t t-out="kl.note"/>)
+                                            </span>
+                                            <span t-if="kl.is_done" class="hkd_self_cat_item_check">&#10003;</span>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                </div>
+            </t>
+        </div>
+    </t>
+
+    <t t-name="hudson_kitchen_display.OrdersHistoryPage" t-inherit="pos_self_order.OrdersHistoryPage" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_so_order_header')]" position="after">
+            <KitchenOrderStatusCard
+                t-if="this.selfOrder.config?.self_ordering_mode === 'mobile' and this.isCurrentOrder(order)"
+                orderAccessToken="order.access_token"
+            />
+        </xpath>
+    </t>
+
+    <t t-name="hudson_kitchen_display.CartPage" t-inherit="pos_self_order.CartPage" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('cart_container')]/h1" position="after">
+            <div t-if="this.showKitchenStatusBanner" class="mb-3">
+                <div class="d-flex align-items-center justify-content-end mb-1">
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none fw-semibold px-1 py-0" t-on-click="this.openMyOrders">
+                        View All My Orders &#8250;
+                    </button>
+                </div>
+                <KitchenOrderStatusCard orderAccessToken="this.selfOrder.currentOrder.access_token"/>
+            </div>
+        </xpath>
+        <xpath expr="//div[hasclass('order_box')]" position="attributes">
+            <attribute name="t-if">this.showOrderBox</attribute>
+        </xpath>
+    </t>
+
+    <t t-name="hudson_kitchen_display.ConfirmationPage" t-inherit="pos_self_order.ConfirmationPage" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_pos_order_box')]" position="inside">
+            <div t-if="this.showMobileKitchenStatus" class="mt-2 mb-2">
+                <KitchenOrderStatusCard orderAccessToken="this.confirmedOrder.access_token"/>
+            </div>
+        </xpath>
+    </t>
+
+</templates>

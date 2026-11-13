@@ -49,7 +49,7 @@
             gain.connect(audioCtx.destination);
             osc.start(now);
             osc.stop(now + duration);
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function getAudioContext() {
@@ -111,7 +111,7 @@
                 osc.start(t);
                 osc.stop(t + p.decay);
             });
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // 2. Order Ready: Bright Double-Bell (Crisp double strike waiter/service bell: Ting-Ting!)
@@ -154,7 +154,7 @@
                 osc.start(t);
                 osc.stop(t + 0.70);
             });
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // 3. Completed / Done: Ascending Celebration Chime (4-Note Fanfare Chime: C5 -> E5 -> G5 -> C6)
@@ -197,14 +197,14 @@
                 oscHarm.start(t);
                 oscHarm.stop(t + (idx === 3 ? 0.95 : 0.28));
             });
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function playSound(type) {
         if (!soundOn) return;
         try {
             getAudioContext();
-            switch(type) {
+            switch (type) {
                 case "new_order":
                     // 1. Ding-Dong Chime (New order in To cook)
                     playDingDongChime();
@@ -233,7 +233,7 @@
                     playTone(880.00, 0.14, "sawtooth", 0.18, 0.16);
                     break;
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function beep(freq, duration) {
@@ -390,6 +390,16 @@
             return true;
         });
 
+        filtered.sort((a, b) => {
+            const keyA = String(a.display_number || a.table_number || a.pos_reference || a.id || "").trim();
+            const keyB = String(b.display_number || b.table_number || b.pos_reference || b.id || "").trim();
+            const cmp = keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: "base" });
+            if (cmp !== 0) return cmp;
+            const dtCmp = String(a.create_date || "").localeCompare(String(b.create_date || ""));
+            if (dtCmp !== 0) return dtCmp;
+            return (Number(a.id) || 0) - (Number(b.id) || 0);
+        });
+
         if (!filtered.length) {
             container.innerHTML = `<div class="kd-empty">No orders here right now.</div>`;
             return;
@@ -451,7 +461,7 @@
                     btn.disabled = true;
                     if (next.name.toLowerCase().includes("complete")) playSound("completed");
                     else playSound("ready");
-                    await rpc("/hudson_kitchen_display/change_stage", { order_id: order.id, stage_id: next.id });
+                    await rpc("/hudson_kitchen_display/change_stage", { order_id: order.id, stage_id: next.id, expected_stage_id: order.stage_id });
                     fetchAndRender();
                 }
             };
@@ -522,7 +532,7 @@
                 }));
             };
             ws.onmessage = () => fetchAndRender();
-            ws.onerror = () => {};
+            ws.onerror = () => { };
         } catch (e) {
             // no websocket support / blocked - polling below still covers us
         }

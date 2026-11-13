@@ -1,0 +1,419 @@
+.hkd_self_status_box {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin-top: 0.65rem;
+    margin-bottom: 0.85rem;
+}
+
+.hkd_self_batches_summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding: 0 0.15rem;
+}
+
+.hkd_self_tap_hint {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.hkd_self_batches_summary_label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.hkd_self_live_dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+    display: inline-block;
+}
+
+.hkd_self_status_station--card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #f59e0b;
+    border-radius: 0.85rem;
+    padding: 0.58rem 0.82rem;
+    box-shadow: 0 3px 10px -4px rgba(15, 23, 42, 0.06);
+    transition: box-shadow 0.2s ease, padding 0.2s ease;
+}
+
+.hkd_self_status_station--expanded {
+    padding: 0.85rem 0.9rem;
+    box-shadow: 0 6px 18px -4px rgba(15, 23, 42, 0.1);
+}
+
+.hkd_self_status_station--cook {
+    border-left-color: #f59e0b;
+}
+
+.hkd_self_status_station--ready {
+    border-left-color: #0284c7;
+}
+
+.hkd_self_status_station--completed {
+    border-left-color: #10b981;
+}
+
+.hkd_self_status_station--current {
+    border: 1.5px solid #3b82f6;
+    border-left: 5px solid #2563eb;
+    background: #ffffff;
+    box-shadow: 0 4px 14px -3px rgba(37, 99, 235, 0.12);
+}
+
+.hkd_self_status_station--past {
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+    opacity: 0.96;
+}
+
+.hkd_self_status_station--card + .hkd_self_status_station--card {
+    margin-top: 0.48rem;
+}
+
+.hkd_self_status_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0;
+}
+
+.hkd_self_status_header--clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.hkd_self_status_header--current {
+    cursor: default;
+    user-select: auto;
+}
+
+.hkd_self_status_station--expanded .hkd_self_status_header {
+    margin-bottom: 0.85rem;
+}
+
+.hkd_self_batch_submeta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+    flex-wrap: wrap;
+}
+
+.hkd_self_kds_ref {
+    font-weight: 700;
+    color: #0f172a;
+    background: #f1f5f9;
+    padding: 0.08rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+}
+
+.hkd_self_header_right {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    flex-shrink: 0;
+}
+
+.hkd_self_chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.hkd_self_chevron--open {
+    transform: rotate(180deg);
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.hkd_self_status_title_wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.hkd_self_icon_badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0 !important;
+}
+
+.hkd_self_title_meta {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.hkd_self_status_title {
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #0f172a;
+}
+
+.hkd_self_batch_time {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-top: 0.1rem;
+}
+
+.hkd_self_status_pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.28rem 0.72rem;
+    border-radius: 999px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.hkd_self_status_pill--done {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.hkd_self_status_pill--ready {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.hkd_self_status_pill--cook {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.hkd_self_stepper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100%;
+    position: relative;
+}
+
+.hkd_self_step {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    text-align: center;
+    min-width: 0;
+}
+
+.hkd_self_step_track {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    position: relative;
+}
+
+.hkd_self_step_line {
+    flex: 1 1 0;
+    height: 3px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    transition: background-color 0.25s ease;
+}
+
+.hkd_self_step_line--hidden {
+    background: transparent !important;
+}
+
+.hkd_self_step_line--filled {
+    background: #10b981;
+}
+
+.hkd_self_step_dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 2px solid #cbd5e1;
+    background: #ffffff;
+    color: #94a3b8;
+    transition: all 0.25s ease;
+    z-index: 1;
+}
+
+.hkd_self_step--done .hkd_self_step_dot {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+}
+
+.hkd_self_step--active .hkd_self_step_dot {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.16);
+}
+
+.hkd_self_step--active.hkd_self_step--last .hkd_self_step_dot {
+    background: #10b981;
+    border-color: #10b981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+
+.hkd_self_step_label {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.2;
+    padding: 0 2px;
+    word-break: break-word;
+}
+
+.hkd_self_step--done .hkd_self_step_label {
+    color: #15803d;
+    font-weight: 700;
+}
+
+.hkd_self_step--active .hkd_self_step_label {
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.hkd_self_cat_groups {
+    margin-top: 0.8rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.hkd_self_cat_group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    padding: 0.5rem 0.65rem;
+}
+
+.hkd_self_cat_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+}
+
+.hkd_self_cat_badge {
+    display: inline-block;
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #334155;
+    background: #e2e8f0;
+    padding: 0.14rem 0.5rem;
+    border-radius: 999px;
+}
+
+.hkd_self_cat_count {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.hkd_self_cat_items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.26rem;
+}
+
+.hkd_self_cat_item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: #1e293b;
+    line-height: 1.3;
+    padding: 0.12rem 0;
+}
+
+.hkd_self_cat_item--done .hkd_self_cat_item_name {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.hkd_self_cat_item_main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    min-width: 0;
+}
+
+.hkd_self_cat_qty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.38rem;
+    padding: 0.06rem 0.36rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: #0f172a;
+    flex-shrink: 0;
+}
+
+.hkd_self_cat_item_name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hkd_self_cat_item_check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #15803d;
+    font-weight: 800;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}

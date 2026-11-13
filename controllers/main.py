@@ -1,9 +1,11 @@
 from datetime import timedelta
+import re
 
-from werkzeug.exceptions import Forbidden
+from werkzeug.exceptions import Forbidden, Unauthorized
 
 from odoo import http, fields
 from odoo.http import request
+from odoo.tools import consteq
 
 
 def _has_kitchen_access(env):
@@ -120,6 +122,75 @@ class KitchenDisplayController(http.Controller):
                         cat_ids.add(c.id)
             return list(cat_ids)
 
+        def _get_line_category(l):
+            if l.product_id:
+                categs = get_pos_categories(l.product_id)
+                if categs:
+                    first_cat = categs[:1]
+                    return first_cat.id, (first_cat.name or 'Other')
+            return 0, 'Other'
+
+        batch_totals = {}
+        batch_index_map = {}
+        by_parent = {}
+        all_display_orders = request.env['pos.kitchen.order'].sudo().with_context(active_test=False).search([
+            ('display_id', '=', display.id),
+            ('company_id', '=', display.company_id.id),
+        ])
+        for o in all_display_orders:
+            parent_key = o.pos_order_id.id if o.pos_order_id else (o.order_uid or o.pos_reference or f'id:{o.id}')
+            by_parent.setdefault(parent_key, []).append(o)
+        for parent_key, group_orders in by_parent.items():
+            sorted_group = sorted(group_orders, key=lambda rec: rec.id)
+            total_b = len(sorted_group)
+            for idx_b, rec in enumerate(sorted_group, start=1):
+                batch_totals[rec.id] = total_b
+                batch_index_map[rec.id] = idx_b
+
+        orders_payload = [{
+            'id': o.id,
+            'pos_order_id': o.pos_order_id.id if o.pos_order_id else False,
+            'pos_reference': (o.pos_order_id.pos_reference if o.pos_order_id else '') or o.pos_reference or f'#{o.id}',
+            'display_number': _get_display_number(o),
+            'batch_number': batch_index_map.get(o.id, 1),
+            'batch_total': batch_totals.get(o.id, 1),
+            'tracking_number': str(o.pos_order_id.tracking_number).strip() if (o.pos_order_id and getattr(o.pos_order_id, 'tracking_number', False)) else '',
+            'table_number': _get_display_number(o),
+            'customer_count': o.customer_count or (getattr(o.pos_order_id, 'customer_count', 1) if o.pos_order_id else 1) or 1,
+            'fulfillment_type': o.fulfillment_type or 'dine_in',
+            'stage_id': o.stage_id.id,
+            'category_ids': _get_order_category_ids(o),
+            'create_date': fields.Datetime.to_string(o.create_date),
+            'minutes_ago': int(round((fields.Datetime.now() - o.create_date).total_seconds() / 60)) if o.create_date else 0,
+            'barcode': o.barcode or f'KDS{o.id:06d}',
+            'lines': [
+                {
+                    'id': l.id,
+                    'name': l.name,
+                    'qty': int(l.qty) if float(l.qty).is_integer() else l.qty,
+                    'note': l.note,
+                    'course_name': getattr(l, 'course_name', '') or '',
+                    'is_done': bool(l.is_done),
+                    'category_id': _get_line_category(l)[0],
+                    'category_name': _get_line_category(l)[1],
+                }
+                for l in o.line_ids
+            ],
+        } for o in orders]
+
+        def _natural_order_sort_key(item):
+            text = str(item.get('display_number') or item.get('table_number') or '').strip()
+            if not text:
+                return (1, (), item.get('create_date') or '', item.get('id') or 0)
+            parts = tuple(
+                (0, int(part)) if part.isdigit() else (1, part.lower())
+                for part in re.split(r'(\d+)', text)
+                if part
+            )
+            return (0, parts, item.get('create_date') or '', item.get('id') or 0)
+
+        orders_payload.sort(key=_natural_order_sort_key)
+
         return {
             'display_name': display.name,
             'stages': [
@@ -131,22 +202,7 @@ class KitchenDisplayController(http.Controller):
                 {'id': c.id, 'name': c.name}
                 for c in categories.sorted('name')
             ],
-            'orders': [{
-                'id': o.id,
-                'pos_order_id': o.pos_order_id.id if o.pos_order_id else False,
-                'pos_reference': (o.pos_order_id.pos_reference if o.pos_order_id else '') or o.pos_reference or f'#{o.id}',
-                'display_number': _get_display_number(o),
-                'tracking_number': str(o.pos_order_id.tracking_number).strip() if (o.pos_order_id and getattr(o.pos_order_id, 'tracking_number', False)) else '',
-                'table_number': _get_display_number(o),
-                'customer_count': o.customer_count or (getattr(o.pos_order_id, 'customer_count', 1) if o.pos_order_id else 1) or 1,
-                'fulfillment_type': o.fulfillment_type or 'dine_in',
-                'stage_id': o.stage_id.id,
-                'category_ids': _get_order_category_ids(o),
-                'create_date': fields.Datetime.to_string(o.create_date),
-                'minutes_ago': int(round((fields.Datetime.now() - o.create_date).total_seconds() / 60)) if o.create_date else 0,
-                'barcode': o.barcode or f'KDS{o.id:06d}',
-                'lines': [{'id': l.id, 'name': l.name, 'qty': int(l.qty) if float(l.qty).is_integer() else l.qty, 'note': l.note, 'is_done': bool(l.is_done)} for l in o.line_ids],
-            } for o in orders],
+            'orders': orders_payload,
         }
 
     @http.route('/hudson_kitchen_display/scan_barcode', type='json', auth='user')
@@ -299,11 +355,12 @@ class KitchenDisplayController(http.Controller):
 """
         for l in lines:
             qty_str = f"{int(l.qty) if float(l.qty).is_integer() else l.qty}x"
-            note_html = f'<div class="ticket-item-note">*** {l.note} ***</div>' if l.note else ''
+            course_badge = f'<span style="font-weight:900; background:#000; color:#fff; padding:1px 5px; border-radius:3px; font-size:11px; margin-right:5px; text-transform:uppercase;">[{l.course_name}]</span> ' if getattr(l, 'course_name', False) else ''
+            note_html = f'<div class="ticket-item-note" style="font-size:13px; font-weight:800; padding-left:14px; margin-top:2px;">*** NOTE: {l.note} ***</div>' if l.note else ''
             html += f"""
         <div class="ticket-item">
             <div class="ticket-item-row">
-                <span>{qty_str} {l.name}</span>
+                <span>{course_badge}{qty_str} {l.name}</span>
             </div>
             {note_html}
         </div>
@@ -336,8 +393,7 @@ class KitchenDisplayController(http.Controller):
         line = request.env['pos.kitchen.order.line'].browse(lid) if lid else None
         if not line or not line.exists():
             return False
-        line.action_toggle_done()
-        return True
+        return line.action_toggle_done()
 
     @http.route('/hudson_kitchen_display/advance_line', type='json', auth='user')
     def advance_line(self, line_id):
@@ -351,13 +407,17 @@ class KitchenDisplayController(http.Controller):
         return True
 
     @http.route('/hudson_kitchen_display/change_stage', type='json', auth='user')
-    def change_stage(self, order_id, stage_id):
+    def change_stage(self, order_id, stage_id, expected_stage_id=None):
         if not _has_kitchen_access(request.env):
             return False
         oid = _safe_int(order_id)
         sid = _safe_int(stage_id)
         order = request.env['pos.kitchen.order'].browse(oid) if oid else None
         if not order or not order.exists() or not sid:
+            return False
+        exp_sid = _safe_int(expected_stage_id)
+        if exp_sid and order.stage_id.id != exp_sid:
+            # Stale client transition (e.g. duplicate tap or polling race) - do not double-jump!
             return False
         order.write({'stage_id': sid})
         order._notify_display()
@@ -463,10 +523,10 @@ class KitchenDisplayController(http.Controller):
 
         pos_reference = order_data.get('pos_reference') or order_data.get('name') or ''
         order_uid = order_data.get('order_uid') or ''
-        server_id = order_data.get('server_id')
-        session_id = order_data.get('session_id')
-        config_id = order_data.get('config_id')
-        company_id = order_data.get('company_id')
+        server_id = _safe_int(order_data.get('server_id'))
+        session_id = _safe_int(order_data.get('session_id'))
+        config_id = _safe_int(order_data.get('config_id'))
+        company_id = _safe_int(order_data.get('company_id'))
         table_name = order_data.get('table_name') or ''
         customer_count = order_data.get('customer_count') or 1
         fulfillment = order_data.get('fulfillment_type') or 'dine_in'
@@ -477,40 +537,47 @@ class KitchenDisplayController(http.Controller):
 
         pos_order = False
         if server_id:
-            try:
-                pos_order = request.env['pos.order'].sudo().browse(int(server_id))
-                if not pos_order.exists():
-                    pos_order = False
-            except Exception:
+            pos_order = request.env['pos.order'].sudo().browse(server_id)
+            if not pos_order.exists():
                 pos_order = False
+
+        sess_rec = False
+        if session_id:
+            s = request.env['pos.session'].sudo().browse(session_id)
+            if s.exists():
+                sess_rec = s
+
+        cfg_rec = False
+        if config_id:
+            c = request.env['pos.config'].sudo().browse(config_id)
+            if c.exists():
+                cfg_rec = c
+        if not cfg_rec and pos_order:
+            cfg_rec = pos_order.config_id or (pos_order.session_id.config_id if pos_order.session_id else False)
+        if not cfg_rec and sess_rec and sess_rec.config_id:
+            cfg_rec = sess_rec.config_id
 
         # Determine company with strict priority:
         company = False
         if pos_order and pos_order.company_id:
             company = pos_order.company_id
         if not company and company_id:
-            try:
-                c = request.env['res.company'].sudo().browse(int(company_id))
-                if c.exists():
-                    company = c
-            except Exception:
-                pass
-        if not company and config_id:
-            try:
-                cfg = request.env['pos.config'].sudo().browse(int(config_id))
-                if cfg.exists() and cfg.company_id:
-                    company = cfg.company_id
-            except Exception:
-                pass
-        if not company and session_id:
-            try:
-                sess = request.env['pos.session'].sudo().browse(int(session_id))
-                if sess.exists() and sess.config_id and sess.config_id.company_id:
-                    company = sess.config_id.company_id
-            except Exception:
-                pass
+            c = request.env['res.company'].sudo().browse(company_id)
+            if c.exists():
+                company = c
+        if not company and cfg_rec and cfg_rec.company_id:
+            company = cfg_rec.company_id
         if not company:
             company = request.env.company
+
+        lock_ident = order_uid or (pos_reference if pos_reference and pos_reference != '/' else False) or (f"pos_order_{server_id}" if server_id else False)
+        if lock_ident:
+            request.env.cr.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                [f"hkd:{company.id}:{lock_ident}"],
+            )
+            request.env['pos.order'].sudo().invalidate_model()
+            request.env['pos.kitchen.order'].sudo().invalidate_model()
 
         # Search existing pos.order by uuid or pos_reference
         if not pos_order:
@@ -531,21 +598,46 @@ class KitchenDisplayController(http.Controller):
             pos_order._send_to_kitchen_displays(force=True, lines_data=lines_data)
             return {'ok': True, 'pos_order_id': pos_order.id, 'pos_reference': pos_reference, 'message': 'Order sent to kitchen'}
 
-        # Otherwise, find matching displays for this specific company and create pos.kitchen.order directly
+        # Otherwise, find matching displays strictly configured for this POS config & company
         PrepDisplay = request.env['pos.prep.display'].sudo()
-        display_domain = [('company_id', '=', company.id)]
-        if config_id:
-            display_domain.extend(['|', ('pos_config_ids', '=', False), ('pos_config_ids', 'in', int(config_id))])
-        displays = PrepDisplay.search(display_domain)
-        if not displays:
-            displays = PrepDisplay.search([('company_id', '=', company.id)])
+        KitchenOrder = request.env['pos.kitchen.order'].sudo()
+        if not cfg_rec:
+            return {
+                'ok': True,
+                'pos_reference': pos_reference,
+                'prep_order_ids': [],
+                'message': 'No POS config found for this order; skipping kitchen push',
+            }
+        displays = PrepDisplay.search([
+            ('company_id', '=', company.id),
+            ('pos_config_ids', 'in', [cfg_rec.id]),
+        ])
 
         if not displays:
-            return {'ok': False, 'message': f'No kitchen display configured for company {company.name}'}
+            return {
+                'ok': True,
+                'pos_reference': pos_reference,
+                'prep_order_ids': [],
+                'message': f'No kitchen display configured for POS {cfg_rec.display_name if cfg_rec else company.name}',
+            }
 
-        from ..utils import get_pos_categories
+        from ..utils import get_pos_categories, get_non_kitchen_product_ids, is_non_kitchen_line
 
-        # Calculate already sent quantities for this pos_reference/order_uid within this company
+        non_kitchen_product_ids = get_non_kitchen_product_ids(request.env, config=cfg_rec)
+
+        filtered_lines_data = [
+            ldata for ldata in lines_data
+            if not is_non_kitchen_line(
+                request.env,
+                line_data=ldata,
+                non_kitchen_product_ids=non_kitchen_product_ids,
+                config=cfg_rec,
+            )
+        ]
+        if not filtered_lines_data:
+            return {'ok': True, 'message': 'No kitchen items to send', 'pos_reference': pos_reference, 'prep_order_ids': []}
+
+        # Calculate already sent quantities independently per display (including archived/Done)
         existing_domain = [('company_id', '=', company.id)]
         match_conds = []
         if order_uid:
@@ -556,53 +648,55 @@ class KitchenDisplayController(http.Controller):
             if len(match_conds) > 1:
                 existing_domain += ['|'] * (len(match_conds) - 1)
             existing_domain += match_conds
-            existing_preps = request.env['pos.kitchen.order'].sudo().search(existing_domain)
+            existing_preps = KitchenOrder.with_context(active_test=False).search(existing_domain)
         else:
-            existing_preps = request.env['pos.kitchen.order'].sudo().browse()
+            existing_preps = KitchenOrder.browse()
 
-        sent_qty_per_product = {}
+        sent_qty_by_display = {}
         for prep in existing_preps:
+            disp_sent = sent_qty_by_display.setdefault(prep.display_id.id, {})
             for pl in prep.line_ids:
                 pid = pl.product_id.id
-                sent_qty_per_product[pid] = sent_qty_per_product.get(pid, 0.0) + pl.qty
+                disp_sent[pid] = disp_sent.get(pid, 0.0) + pl.qty
 
         created_prep_ids = []
         for display in displays:
+            remaining_sent = dict(sent_qty_by_display.get(display.id, {}))
             lines = []
-            for ldata in lines_data:
+            for ldata in filtered_lines_data:
                 pid = ldata.get('product_id')
-                if not pid:
-                    continue
-                qty = float(ldata.get('qty', 1))
-                sent_qty = sent_qty_per_product.get(pid, 0.0)
-                qty_to_send = qty - sent_qty
-                if qty_to_send <= 0:
-                    continue
+                line_qty = float(ldata.get('qty', 1))
                 product = request.env['product.product'].sudo().browse(pid)
                 if not product.exists():
                     continue
                 categs = get_pos_categories(product)
                 if display.category_ids and not (display.category_ids & categs):
                     continue
+                prev_sent = remaining_sent.get(pid, 0.0)
+                if prev_sent >= line_qty:
+                    remaining_sent[pid] = prev_sent - line_qty
+                    continue
+                qty_to_send = line_qty - prev_sent
+                remaining_sent[pid] = 0.0
                 lines.append((0, 0, {
                     'product_id': pid,
                     'name': ldata.get('name') or product.display_name,
                     'qty': qty_to_send,
                     'note': ldata.get('note', '') or '',
+                    'course_name': ldata.get('course_name', '') or '',
                 }))
-                sent_qty_per_product[pid] = sent_qty + qty_to_send
 
             if not lines:
                 continue
             first_stage = display.stage_ids.sorted('sequence')[:1]
             if not first_stage:
                 continue
-            prep_order = request.env['pos.kitchen.order'].sudo().create({
+            prep_order = KitchenOrder.create({
                 'pos_order_id': False,
                 'pos_reference': pos_reference,
                 'order_uid': order_uid,
-                'config_id': int(config_id) if config_id else False,
-                'session_id': int(session_id) if session_id else False,
+                'config_id': cfg_rec.id if cfg_rec else False,
+                'session_id': sess_rec.id if sess_rec else False,
                 'company_id': company.id,
                 'display_id': display.id,
                 'stage_id': first_stage.id,
@@ -797,6 +891,38 @@ class KitchenDisplayController(http.Controller):
             'prep_title': "Almost there",
             'stages': [{'id': s.id, 'name': s.name, 'is_ready': s.id in completed_stage_ids} for s in stages],
         }
+
+    # ------------------------------------------------------------------
+    # Self-Order ("My Orders") live 3-stage Kitchen Display status API
+    # ------------------------------------------------------------------
+    @http.route('/pos-self-order/kitchen-status', auth='public', type='jsonrpc', website=True)
+    def self_order_kitchen_status(self, access_token, orders=None):
+        """Return live Kitchen Display stages strictly for the caller's own
+        token-verified POS orders (never exposing other guests' orders)."""
+        pos_config_sudo = request.env['pos.config'].sudo().search([('access_token', '=', access_token)], limit=1)
+        if not pos_config_sudo or pos_config_sudo.self_ordering_mode not in ('mobile', 'kiosk'):
+            raise Unauthorized("Invalid access token")
+
+        statuses = {}
+        if not isinstance(orders, list):
+            return {'statuses': statuses}
+
+        PosOrder = request.env['pos.order'].sudo()
+        for entry in orders[:50]:
+            if not isinstance(entry, dict):
+                continue
+            oid = _safe_int(entry.get('id'))
+            o_token = entry.get('access_token')
+            if not oid or not o_token or not isinstance(o_token, str):
+                continue
+            order = PosOrder.browse(oid)
+            if not order.exists() or order.config_id.id != pos_config_sudo.id:
+                continue
+            if not order.access_token or not consteq(order.access_token, o_token):
+                continue
+            statuses[order.access_token] = order._get_self_order_kitchen_status()
+
+        return {'statuses': statuses}
 
     # ------------------------------------------------------------------
     # Virtual / Preview Order Printer handler for PoS testing

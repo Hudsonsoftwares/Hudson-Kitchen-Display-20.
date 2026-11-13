@@ -1,6 +1,6 @@
 {
     'name': 'Kitchen Display System (Custom KDS)',
-    'version': '20.0.1.0.0',
+    'version': '20.0.1.0.13',
     'category': 'Point of Sale',
     'summary': 'Kitchen Display / Preparation Display for Odoo Community',
     'description': """
@@ -36,7 +36,7 @@ See README.md in this folder for setup notes and known limitations.
 """,
     'author': 'Hudson Softwares',
     'license': 'LGPL-3',
-    'depends': ['point_of_sale', 'pos_restaurant'],
+    'depends': ['point_of_sale', 'pos_restaurant', 'pos_self_order'],
     'data': [
         'security/ir.access.csv',
         'views/pos_prep_display_views.xml',
@@ -60,7 +60,13 @@ See README.md in this folder for setup notes and known limitations.
             'hudson_kitchen_display/static/src/css/pos_actions_modal.css',
             'hudson_kitchen_display/static/src/app/**/*',
         ],
+        'pos_self_order.assets': [
+            'hudson_kitchen_display/static/src/self_order/kitchen_status_tracker.scss',
+            'hudson_kitchen_display/static/src/self_order/kitchen_status_tracker.js',
+            'hudson_kitchen_display/static/src/self_order/kitchen_status_tracker.xml',
+        ],
     },
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': True,
 }

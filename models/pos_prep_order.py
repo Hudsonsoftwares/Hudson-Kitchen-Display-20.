@@ -109,6 +109,8 @@ class PosKitchenOrder(models.Model):
                     order.done_date = fields.Datetime.now()
                 elif stages and order.stage_id.id != stages[-1].id and order.done_date:
                     order.done_date = False
+        if 'stage_id' in vals or 'active' in vals:
+            self._notify_self_order_configs()
         return res
 
     def action_next_stage(self):
@@ -297,6 +299,21 @@ class PosKitchenOrder(models.Model):
             orders.action_mark_done()
             return {'success': True, 'count': count, 'next_stage_name': 'Completed'}
 
+    def _notify_self_order_configs(self):
+        """Send an anonymized bus ping on affected self-order POS configs so open
+        customer screens refresh only their own token-scoped order status."""
+        configs = self.env['pos.config'].sudo()
+        for order in self:
+            cfg = order.config_id or (order.pos_order_id.config_id if order.pos_order_id else False)
+            if cfg and getattr(cfg, 'self_ordering_mode', False) in ('mobile', 'kiosk'):
+                configs |= cfg
+        for cfg in configs:
+            if hasattr(cfg, '_notify'):
+                try:
+                    cfg._notify('KITCHEN_STATUS_CHANGED', {})
+                except Exception:
+                    pass
+
     def _notify_display(self):
         """Push a lightweight ping on the display's bus channel so every open
         kitchen screen for that display refreshes near-instantly instead of
@@ -316,6 +333,7 @@ class PosKitchenOrder(models.Model):
                         })
             except Exception:
                 pass  # bus is best-effort; polling is the safety net
+        self._notify_self_order_configs()
 
     # kept for backwards compatibility with earlier controller code
     def _notify_customer_screen(self):
@@ -334,17 +352,33 @@ class PosKitchenOrderLine(models.Model):
     name = fields.Char()
     qty = fields.Float(default=1.0)
     note = fields.Char()
+    course_name = fields.Char(string='Course')
     is_done = fields.Boolean(string='Done', default=False)
 
     def action_toggle_done(self):
+        res = {}
         for line in self:
             line.is_done = not line.is_done
             order = line.prep_order_id
-            if order and all(l.is_done for l in order.line_ids):
-                order.action_next_stage()
-                order.line_ids.write({'is_done': False})
+            advanced = False
+            if order and order.line_ids and all(l.is_done for l in order.line_ids):
+                stages = list(order.display_id.stage_ids.sorted('sequence'))
+                if order.stage_id in stages and stages.index(order.stage_id) + 1 < len(stages):
+                    order.action_next_stage()
+                    order.line_ids.write({'is_done': False})
+                    advanced = True
+                else:
+                    order._notify_display()
             elif order:
                 order._notify_display()
+            res = {
+                'ok': True,
+                'line_id': line.id,
+                'is_done': bool(line.is_done),
+                'stage_id': order.stage_id.id if order else False,
+                'advanced': advanced,
+            }
+        return res
 
     def action_advance_line(self):
         for line in self:
