@@ -95,11 +95,10 @@
     </t>
 
     <t t-name="hudson_kitchen_display.OrdersHistoryPage" t-inherit="pos_self_order.OrdersHistoryPage" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('o_so_order_header')]" position="after">
-            <KitchenOrderStatusCard
-                t-if="this.selfOrder.config?.self_ordering_mode === 'mobile' and this.isCurrentOrder(order)"
-                orderAccessToken="order.access_token"
-            />
+        <xpath expr="//h1" position="after">
+            <div t-if="this.selfOrder.config?.self_ordering_mode === 'mobile' and this.currentOrderAccessToken" class="mb-4">
+                <KitchenOrderStatusCard orderAccessToken="this.currentOrderAccessToken"/>
+            </div>
         </xpath>
     </t>
 

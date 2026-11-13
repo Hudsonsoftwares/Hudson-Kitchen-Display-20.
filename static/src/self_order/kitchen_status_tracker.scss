@@ -417,3 +417,14 @@
     font-size: 0.72rem;
     flex-shrink: 0;
 }
+
+.o_so_order_header {
+    cursor: default !important;
+    user-select: none;
+
+    .badge {
+        cursor: default !important;
+        pointer-events: none !important;
+    }
+}
+

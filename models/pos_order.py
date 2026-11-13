@@ -153,15 +153,15 @@ class PosOrder(models.Model):
     def _get_self_order_kitchen_status(self):
         """Return strictly scoped Kitchen Display 3-stage progress for this single POS order."""
         self.ensure_one()
-        if self.state == 'cancel':
+        if self.state in ('cancel', 'paid', 'done'):
             return {
                 'order_id': self.id,
                 'order_access_token': self.access_token or '',
-                'is_cancelled': True,
+                'is_cancelled': (self.state == 'cancel'),
                 'has_kitchen': False,
-                'summary_state': 'cancelled',
-                'summary_label': 'Cancelled',
-                'is_served_done': False,
+                'summary_state': 'completed' if self.state in ('paid', 'done') else 'cancelled',
+                'summary_label': 'Completed' if self.state in ('paid', 'done') else 'Cancelled',
+                'is_served_done': (self.state in ('paid', 'done')),
                 'displays': [],
                 'batches': [],
                 'categories': [],

@@ -45,12 +45,15 @@ export class KitchenOrderStatusCard extends Component {
 
     get hasDisplays() {
         const s = this.status;
-        return Boolean(s && !s.is_cancelled && s.has_kitchen && (s.batches?.length || s.displays?.length));
+        if (!s || s.is_cancelled || !s.has_kitchen || s.is_served_done || s.summary_state === "completed") {
+            return false;
+        }
+        return Boolean(this.batches.length);
     }
 
     get batches() {
         const s = this.status;
-        if (!s || s.is_cancelled || !s.has_kitchen) {
+        if (!s || s.is_cancelled || !s.has_kitchen || s.is_served_done || s.summary_state === "completed") {
             return [];
         }
         const allBatches = (s.batches && s.batches.length) ? s.batches : (s.displays || []).map((d, idx) => ({
@@ -63,8 +66,8 @@ export class KitchenOrderStatusCard extends Component {
             categories: [],
         }));
         // Show strictly the current active order in the KDS tracker card
-        const current = allBatches.filter((b) => b.is_current);
-        return current.length ? current : (allBatches.length ? [allBatches[allBatches.length - 1]] : []);
+        const current = allBatches.filter((b) => b.is_current && !b.is_completed && !b.is_served_done);
+        return current.length ? current : (allBatches.length && !allBatches[allBatches.length - 1].is_completed ? [allBatches[allBatches.length - 1]] : []);
     }
 
     get hasMultipleBatches() {
@@ -306,32 +309,27 @@ patch(OrdersHistoryPage.prototype, {
         });
     },
 
-    isCurrentOrder(order) {
-        if (!order || order.state === "cancel") {
-            return false;
-        }
-        const currentToken = this.selfOrder.currentOrder?.access_token;
-        if (currentToken && order.access_token === currentToken) {
-            return true;
-        }
-        const activeOrders = (this.orders || []).filter((o) => o && o.state !== "cancel" && o.access_token);
-        if (activeOrders.length > 0 && activeOrders[0].access_token === order.access_token) {
-            const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
-            if (status && status.has_kitchen && !status.is_cancelled) {
-                return true;
-            }
-            if (order.state === "draft") {
-                return true;
+    get currentOrderAccessToken() {
+        const cur = this.selfOrder.currentOrder;
+        if (cur && cur.access_token && cur.state === "draft") {
+            const status = this.selfOrder.kitchenStatusByToken?.[cur.access_token];
+            if (status && status.has_kitchen && !status.is_served_done && status.summary_state !== "completed" && !status.is_cancelled) {
+                return cur.access_token;
             }
         }
-        return false;
+        const draftOrder = (this.orders || []).find((o) => o && o.state === "draft" && o.access_token);
+        if (draftOrder) {
+            const status = this.selfOrder.kitchenStatusByToken?.[draftOrder.access_token];
+            if (status && status.has_kitchen && !status.is_served_done && status.summary_state !== "completed" && !status.is_cancelled) {
+                return draftOrder.access_token;
+            }
+        }
+        return null;
     },
 
     editOrder(order) {
-        if (order.state === "draft" && this.selfOrder.currentOrder?.unsentLines?.length > 0) {
-            this.selfOrder.selectedOrderUuid = order.uuid;
-            this.router.navigate("cart");
-        }
+        // Do nothing when clicking order header or status pill - user requested not clickable
+        return;
     },
 });
 
@@ -377,13 +375,17 @@ patch(CartPage.prototype, {
 
     get showKitchenStatusBanner() {
         const order = this.selfOrder.currentOrder;
+        if (!order || !order.isSynced || !order.access_token) return false;
+        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
+            return false;
+        }
+        const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
+        if (status && (status.is_served_done || status.summary_state === "completed" || status.is_cancelled || !status.has_kitchen)) {
+            return false;
+        }
         return Boolean(
             this.selfOrder.config?.self_ordering_mode === "mobile" &&
-            !this.isCheckout &&
-            order &&
-            order.isSynced &&
-            order.access_token &&
-            order.state !== "cancel"
+            !this.isCheckout
         );
     },
 
@@ -458,9 +460,13 @@ patch(ConfirmationPage.prototype, {
     },
 
     get showMobileKitchenStatus() {
+        const order = this.confirmedOrder;
+        if (!order || !order.access_token) return false;
+        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
+            return false;
+        }
         return Boolean(
-            this.selfOrder.config?.self_ordering_mode === "mobile" &&
-            this.confirmedOrder?.access_token
+            this.selfOrder.config?.self_ordering_mode === "mobile"
         );
     },
 
