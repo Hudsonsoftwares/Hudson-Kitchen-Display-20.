@@ -67,7 +67,7 @@ export class KitchenOrderStatusCard extends Component {
         }));
         // Show strictly the current active order in the KDS tracker card
         const current = allBatches.filter((b) => b.is_current && !b.is_completed && !b.is_served_done);
-        return current.length ? current : (allBatches.length && !allBatches[allBatches.length - 1].is_completed ? [allBatches[allBatches.length - 1]] : []);
+        return current.length ? current : (allBatches.length && !allBatches[allBatches.length - 1].is_completed && !allBatches[allBatches.length - 1].is_served_done ? [allBatches[allBatches.length - 1]] : []);
     }
 
     get hasMultipleBatches() {
@@ -186,6 +186,31 @@ patch(SelfOrder.prototype, {
         });
     },
 
+    getActiveKitchenOrders(orders = null) {
+        let candidates = orders;
+        if (!candidates || !candidates.length) {
+            const all = this.models["pos.order"]
+                .filter((o) => o && typeof o.id === "number" && o.access_token && o.state !== "cancel" && o.state !== "paid" && o.state !== "done")
+                .sort((a, b) => (b.id || 0) - (a.id || 0));
+            const cur = this.currentOrder;
+            if (cur && typeof cur.id === "number" && cur.access_token && cur.state !== "cancel" && cur.state !== "paid" && cur.state !== "done") {
+                candidates = [cur, ...all.filter((o) => o.id !== cur.id)];
+            } else {
+                candidates = all;
+            }
+        }
+        return (candidates || []).filter((o) => {
+            if (!o || typeof o.id !== "number" || !o.access_token || o.state === "cancel" || o.state === "paid" || o.state === "done") {
+                return false;
+            }
+            const status = this.kitchenStatusByToken?.[o.access_token];
+            if (status && (status.is_served_done || status.summary_state === "completed" || status.is_cancelled || !status.has_kitchen)) {
+                return false;
+            }
+            return true;
+        });
+    },
+
     async fetchKitchenStatus(orders = null) {
         if (this.config?.self_ordering_mode !== "mobile") {
             return;
@@ -197,27 +222,27 @@ patch(SelfOrder.prototype, {
             }
             return;
         }
-        let sourceOrders = orders;
-        if (!sourceOrders) {
-            const allOrders = this.models["pos.order"]
-                .filter((o) => o && typeof o.id === "number" && o.access_token && o.state !== "cancel")
-                .sort((a, b) => (b.id || 0) - (a.id || 0));
-            const cur = this.currentOrder;
-            if (cur && typeof cur.id === "number" && cur.access_token && cur.state !== "cancel") {
-                sourceOrders = [cur, ...allOrders.filter((o) => o.id !== cur.id)];
-            } else {
-                sourceOrders = allOrders;
+        const activeOrders = this.getActiveKitchenOrders(orders);
+        if (!activeOrders.length) {
+            if (this._kitchenTrackingTimer) {
+                clearInterval(this._kitchenTrackingTimer);
+                this._kitchenTrackingTimer = null;
             }
+            return;
         }
         const seenIds = new Set();
         const payload = [];
-        for (const o of sourceOrders) {
-            if (o && typeof o.id === "number" && o.access_token && o.state !== "cancel" && !seenIds.has(o.id)) {
+        for (const o of activeOrders) {
+            if (!seenIds.has(o.id)) {
                 seenIds.add(o.id);
                 payload.push({ id: o.id, access_token: o.access_token });
             }
         }
         if (!payload.length) {
+            if (this._kitchenTrackingTimer) {
+                clearInterval(this._kitchenTrackingTimer);
+                this._kitchenTrackingTimer = null;
+            }
             return;
         }
         this._kitchenFetchInFlight = true;
@@ -232,6 +257,11 @@ patch(SelfOrder.prototype, {
                 if (JSON.stringify(prev) !== JSON.stringify(nextStatus)) {
                     this.kitchenStatusByToken[token] = nextStatus;
                 }
+            }
+            const remaining = this.getActiveKitchenOrders();
+            if (!remaining.length && this._kitchenTrackingTimer) {
+                clearInterval(this._kitchenTrackingTimer);
+                this._kitchenTrackingTimer = null;
             }
         } catch {
             // Transient network error: keep last shown kitchen stage and let next poll/WS recover.
@@ -255,11 +285,18 @@ patch(SelfOrder.prototype, {
 
     startKitchenTracking(orders = null) {
         this._kitchenTrackingCount += 1;
-        this.fetchKitchenStatus(orders);
+        const activeOrders = this.getActiveKitchenOrders(orders);
+        if (!activeOrders.length) {
+            return;
+        }
+        this.fetchKitchenStatus(activeOrders);
         if (!this._kitchenTrackingTimer) {
             this._kitchenTrackingTimer = setInterval(() => {
                 if (this._kitchenTrackingCount > 0) {
                     this.fetchKitchenStatus();
+                } else if (this._kitchenTrackingTimer) {
+                    clearInterval(this._kitchenTrackingTimer);
+                    this._kitchenTrackingTimer = null;
                 }
             }, 3500);
         }
@@ -284,19 +321,12 @@ patch(OrdersHistoryPage.prototype, {
         super.setup(...arguments);
         this._historyKitchenStarted = false;
         this._historyUnmounted = false;
-        onMounted(async () => {
+        onMounted(() => {
             if (this.selfOrder.config?.self_ordering_mode === "mobile") {
-                if (!this._historyUnmounted && !this._historyKitchenStarted) {
+                const active = this.activeOrder;
+                if (active) {
                     this._historyKitchenStarted = true;
-                    this.selfOrder.startKitchenTracking(this.orders);
-                }
-                try {
-                    await this.selfOrder.getUserDataFromServer();
-                    if (!this._historyUnmounted && (this.orders || []).length) {
-                        this.selfOrder.fetchKitchenStatus(this.orders);
-                    }
-                } catch {
-                    // Continue with cached orders
+                    this.selfOrder.startKitchenTracking([active]);
                 }
             }
         });
@@ -309,22 +339,56 @@ patch(OrdersHistoryPage.prototype, {
         });
     },
 
-    get currentOrderAccessToken() {
+    isOrderActive(order) {
+        if (!order || !order.access_token) {
+            return false;
+        }
+        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
+            return false;
+        }
+        const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
+        if (status) {
+            if (status.is_cancelled || status.is_served_done || status.summary_state === "completed" || !status.has_kitchen) {
+                return false;
+            }
+            return true;
+        }
+        return order.state === "draft" && Boolean(order.isSynced);
+    },
+
+    get allOrders() {
+        return this.selfOrder.models["pos.order"]
+            .filter((o) => o && o.access_token)
+            .sort((a, b) => (b.id || 0) - (a.id || 0));
+    },
+
+    get activeOrder() {
         const cur = this.selfOrder.currentOrder;
-        if (cur && cur.access_token && cur.state === "draft") {
-            const status = this.selfOrder.kitchenStatusByToken?.[cur.access_token];
-            if (status && status.has_kitchen && !status.is_served_done && status.summary_state !== "completed" && !status.is_cancelled) {
-                return cur.access_token;
-            }
+        if (cur && cur.access_token && this.isOrderActive(cur)) {
+            return cur;
         }
-        const draftOrder = (this.orders || []).find((o) => o && o.state === "draft" && o.access_token);
-        if (draftOrder) {
-            const status = this.selfOrder.kitchenStatusByToken?.[draftOrder.access_token];
-            if (status && status.has_kitchen && !status.is_served_done && status.summary_state !== "completed" && !status.is_cancelled) {
-                return draftOrder.access_token;
-            }
+        return this.allOrders.find((o) => this.isOrderActive(o)) || null;
+    },
+
+    get currentOrderAccessToken() {
+        return this.activeOrder?.access_token || null;
+    },
+
+    get orders() {
+        // Return strictly previous orders for the default list below
+        const activeToken = this.currentOrderAccessToken;
+        if (!activeToken) {
+            return this.allOrders;
         }
-        return null;
+        return this.allOrders.filter((o) => o.access_token !== activeToken);
+    },
+
+    get hasAnyOrders() {
+        return this.allOrders.length > 0;
+    },
+
+    get hasNoOrders() {
+        return this.allOrders.length === 0;
     },
 
     editOrder(order) {

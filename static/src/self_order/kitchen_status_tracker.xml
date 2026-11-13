@@ -95,10 +95,16 @@
     </t>
 
     <t t-name="hudson_kitchen_display.OrdersHistoryPage" t-inherit="pos_self_order.OrdersHistoryPage" t-inherit-mode="extension">
+        <xpath expr="//h1" position="attributes">
+            <attribute name="t-if">this.hasAnyOrders</attribute>
+        </xpath>
         <xpath expr="//h1" position="after">
             <div t-if="this.selfOrder.config?.self_ordering_mode === 'mobile' and this.currentOrderAccessToken" class="mb-4">
                 <KitchenOrderStatusCard orderAccessToken="this.currentOrderAccessToken"/>
             </div>
+        </xpath>
+        <xpath expr="//div[hasclass('justify-content-center')]" position="attributes">
+            <attribute name="t-if">this.hasNoOrders</attribute>
         </xpath>
     </t>
 
@@ -123,6 +129,11 @@
             <div t-if="this.showMobileKitchenStatus" class="mt-2 mb-2">
                 <KitchenOrderStatusCard orderAccessToken="this.confirmedOrder.access_token"/>
             </div>
+        </xpath>
+        <xpath expr="//div[hasclass('o_pos_status_base')]/button" position="before">
+            <button t-if="this.showMobileKitchenStatus" type="button" class="btn btn-lg btn-outline-primary w-100 mb-2" t-on-click="this.openMyOrders">
+                View All My Orders
+            </button>
         </xpath>
     </t>
 
