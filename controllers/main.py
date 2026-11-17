@@ -5,6 +5,7 @@ from werkzeug.exceptions import Forbidden, Unauthorized
 
 from odoo import http, fields
 from odoo.http import request
+from odoo.http.stream import content_disposition
 from odoo.tools import consteq
 
 
@@ -923,6 +924,74 @@ class KitchenDisplayController(http.Controller):
             statuses[order.access_token] = order._get_self_order_kitchen_status()
 
         return {'statuses': statuses}
+
+    @http.route('/pos-self-order/hkd-receipt/<int:order_id>', auth='public', type='http')
+    def self_order_receipt_any_state(self, order_id, access_token=None):
+        """Receipt download for EVERY self-order, including unpaid (draft) ones.
+
+        Odoo's /pos-self-order/receipt only serves paid orders; with "pay after meal"
+        each separate order is still draft, so guests get a provisional bill here.
+        Same protection as Odoo's route: the order's own access token is required.
+        """
+        order_sudo = request.env['pos.order'].sudo().browse(order_id)
+        if (
+            not order_sudo.exists()
+            or not order_sudo.access_token
+            or order_sudo.state == 'cancel'
+            or not access_token
+            or not consteq(order_sudo.access_token, access_token)
+        ):
+            return request.not_found()
+        order_sudo = order_sudo.with_company(order_sudo.company_id)
+        filename = f'Receipt-{order_sudo.pos_reference or order_sudo.name}'
+        try:
+            # Odoo's own receipt picture (needs the wkhtmltoimage tool on the server)
+            image = order_sudo.order_receipt_generate_image()
+        except Exception:
+            image = False
+        if image:
+            return request.make_response(image, [
+                ('Content-Type', 'image/png'),
+                ('Content-Length', len(image)),
+                ('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"),
+                ('Content-Disposition', content_disposition(f'{filename}.png')),
+            ])
+        # Fallback: the same receipt as an 80 mm PDF, rendered with wkhtmltopdf
+        # (Odoo's Windows installer ships wkhtmltopdf but not wkhtmltoimage).
+        pdf = self._self_order_receipt_pdf(order_sudo)
+        if not pdf:
+            return request.not_found()
+        return request.make_response(pdf, [
+            ('Content-Type', 'application/pdf'),
+            ('Content-Length', len(pdf)),
+            ('Content-Disposition', content_disposition(f'{filename}.pdf')),
+        ])
+
+    @staticmethod
+    def _self_order_receipt_pdf(order_sudo):
+        env = order_sudo.env
+        paperformat = env['report.paperformat'].new({
+            'name': 'Self-order receipt (80 mm)',
+            'format': 'custom',
+            'page_width': 80,
+            'page_height': 297,
+            'orientation': 'Portrait',
+            'margin_top': 4,
+            'margin_bottom': 4,
+            'margin_left': 3,
+            'margin_right': 3,
+            'header_spacing': 0,
+            'dpi': 96,
+        })
+        report = env['ir.actions.report'].new({
+            'name': 'Self-order receipt',
+            'model': 'pos.order',
+            'report_type': 'qweb-pdf',
+            'report_name': 'hudson_kitchen_display.self_order_receipt_pdf',
+            'paperformat_id': paperformat,
+        })
+        html = order_sudo.order_receipt_generate_html()
+        return env['ir.actions.report']._run_pdf_engine_without_processing('wkhtmltopdf', [html], report_ref=report)
 
     # ------------------------------------------------------------------
     # Virtual / Preview Order Printer handler for PoS testing

@@ -1192,6 +1192,41 @@
                             return (Number(a.id) || 0) - (Number(b.id) || 0);
                         }
 
+                        function syncOrderToTracking(action, order, orderId) {
+                            try {
+                                const targetId = orderId || (order ? order.id : null);
+                                const num = order ? (order.display_number || order.tracking_number || order.table_number || (order.pos_reference ? order.pos_reference.split(" ").slice(-1)[0] : "") || String(order.id)).replace(/^T/, "") : "";
+                                const payload = {
+                                    action: action,
+                                    id: targetId,
+                                    reference: num,
+                                    timestamp: Date.now()
+                                };
+
+                                let readyList = JSON.parse(localStorage.getItem("kd_tracking_ready_orders") || "[]");
+                                let prepList = JSON.parse(localStorage.getItem("kd_tracking_prep_orders") || "[]");
+
+                                const cutoff = Date.now() - 45 * 1000;
+                                readyList = readyList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
+                                prepList = prepList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
+
+                                if (action === "ready") {
+                                    if (num) readyList.unshift({ id: targetId, reference: num, timestamp: Date.now() });
+                                } else if (action === "preparing") {
+                                    if (num) prepList.unshift({ id: targetId, reference: num, timestamp: Date.now() });
+                                }
+
+                                localStorage.setItem("kd_tracking_ready_orders", JSON.stringify(readyList));
+                                localStorage.setItem("kd_tracking_prep_orders", JSON.stringify(prepList));
+
+                                if (window.BroadcastChannel) {
+                                    const bc = new BroadcastChannel("kd_order_tracking_channel");
+                                    bc.postMessage(payload);
+                                    bc.close();
+                                }
+                            } catch(e) {}
+                        }
+
                         function renderCards() {
                             const canvas = document.getElementById("kd-canvas");
                             if (!canvas) return;
@@ -1400,41 +1435,6 @@
                                     }
                                 };
                             });
-
-                            function syncOrderToTracking(action, order, orderId) {
-                                try {
-                                    const targetId = orderId || (order ? order.id : null);
-                                    const num = order ? (order.display_number || order.tracking_number || order.table_number || (order.pos_reference ? order.pos_reference.split(" ").slice(-1)[0] : "") || String(order.id)).replace(/^T/, "") : "";
-                                    const payload = {
-                                        action: action,
-                                        id: targetId,
-                                        reference: num,
-                                        timestamp: Date.now()
-                                    };
-
-                                    let readyList = JSON.parse(localStorage.getItem("kd_tracking_ready_orders") || "[]");
-                                    let prepList = JSON.parse(localStorage.getItem("kd_tracking_prep_orders") || "[]");
-
-                                    const cutoff = Date.now() - 45 * 1000;
-                                    readyList = readyList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
-                                    prepList = prepList.filter(item => (item.timestamp || 0) >= cutoff && String(item.id) !== String(targetId) && String(item.reference) !== String(num));
-
-                                    if (action === "ready") {
-                                        if (num) readyList.unshift({ id: targetId, reference: num, timestamp: Date.now() });
-                                    } else if (action === "preparing") {
-                                        if (num) prepList.unshift({ id: targetId, reference: num, timestamp: Date.now() });
-                                    }
-
-                                    localStorage.setItem("kd_tracking_ready_orders", JSON.stringify(readyList));
-                                    localStorage.setItem("kd_tracking_prep_orders", JSON.stringify(prepList));
-
-                                    if (window.BroadcastChannel) {
-                                        const bc = new BroadcastChannel("kd_order_tracking_channel");
-                                        bc.postMessage(payload);
-                                        bc.close();
-                                    }
-                                } catch(e) {}
-                            }
 
                             // Click Reset button
                             canvas.querySelectorAll(".btn-reset").forEach(btn => {
@@ -1702,8 +1702,16 @@
                                         };
                                     }
                                 }
-                                await rpc("/hudson_kitchen_display/clear_completed", { display_id: displayId });
-                                await loadData();
+                                btnClearDone.disabled = true;
+                                try {
+                                    await rpc("/hudson_kitchen_display/clear_completed", { display_id: displayId });
+                                    lastMutationEnd = Date.now();
+                                    await loadData({ force: true });
+                                } catch (err) {
+                                    console.error("Clear completed error:", err);
+                                } finally {
+                                    btnClearDone.disabled = false;
+                                }
                             };
                         }
 
@@ -1730,7 +1738,8 @@
                                         // Server-side recall of the most recently modified or completed order
                                         await rpc("/hudson_kitchen_display/recall", { display_id: displayId });
                                     }
-                                    await loadData();
+                                    lastMutationEnd = Date.now();
+                                    await loadData({ force: true });
                                 } catch (err) {
                                     console.error("Recall error:", err);
                                 } finally {
@@ -2237,7 +2246,8 @@
 
                         function getSharedOrders(key) {
                             try {
-                                const cutoff = Date.now() - 45 * 1000;
+                                // Short-lived optimistic hints only: the server list (polled every 2.5 s) is the truth
+                                const cutoff = Date.now() - 8 * 1000;
                                 let list = JSON.parse(localStorage.getItem(key) || "[]");
                                 return list.filter(item => (item.timestamp || 0) >= cutoff);
                             } catch(e) { return []; }

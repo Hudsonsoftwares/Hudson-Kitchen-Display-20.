@@ -1,5 +1,6 @@
 import { Component, onMounted, onWillUnmount, proxy, t, useProps } from "@odoo/owl";
 import { rpc } from "@web/core/network/rpc";
+import { serializeDateTime } from "@web/core/l10n/dates";
 import { _t } from "@web/core/l10n/translation";
 import { patch } from "@web/core/utils/patch";
 import { SelfOrder } from "@pos_self_order/app/services/self_order_service";
@@ -18,73 +19,16 @@ export class KitchenOrderStatusCard extends Component {
 
     setup() {
         this.selfOrder = this.env.services.self_order;
-        this.state = proxy({ expandedRounds: {} });
+        // Open by default so food items and stepper are directly visible
+        this.state = proxy({ collapsedTickets: {} });
     }
 
-    get order() {
-        return (this.selfOrder.models["pos.order"] || []).find((o) => o && o.access_token === this.props.orderAccessToken) || null;
-    }
-
-    get orderPosReference() {
-        return this.order?.pos_reference || this.status?.pos_reference || _t("Current Order");
-    }
-
-    get orderSubmeta() {
-        const order = this.order;
-        const trackingNum = order?.tracking_number || this.status?.tracking_number;
-        let dateStr = "";
-        if (order?.date_order) {
-            try {
-                dateStr = typeof order.date_order.toFormat === "function" ? order.date_order.toFormat("dd/MM/yyyy") : String(order.date_order);
-            } catch {
-                dateStr = "";
-            }
-        }
-        if (!dateStr && this.batches.length && this.batches[0].created_at) {
-            dateStr = this.formatBatchDate(this.batches[0].created_at);
-        }
-        if (trackingNum && dateStr) {
-            return `#${trackingNum} - ${dateStr}`;
-        } else if (trackingNum) {
-            return `#${trackingNum}`;
-        } else if (dateStr) {
-            return dateStr;
-        }
-        return "";
-    }
-
-    formatBatchDate(createdAt) {
-        if (!createdAt) return "";
-        try {
-            const iso = createdAt.replace(" ", "T") + "Z";
-            const d = new Date(iso);
-            if (Number.isNaN(d.getTime())) return "";
-            const day = String(d.getDate()).padStart(2, "0");
-            const month = String(d.getMonth() + 1).padStart(2, "0");
-            const year = d.getFullYear();
-            return `${day}/${month}/${year}`;
-        } catch {
-            return "";
-        }
-    }
-
-    toggleBatch(batch) {
-        if (batch && batch.is_current) {
-            return;
-        }
-        const key = batch ? (batch.round_key || batch.ticket_id) : null;
-        if (key) {
-            this.state.expandedRounds[key] = !this.state.expandedRounds[key];
-        }
+    toggleBatch(ticketId) {
+        this.state.collapsedTickets[ticketId] = !this.state.collapsedTickets[ticketId];
     }
 
     isBatchExpanded(batch) {
-        if (batch && batch.is_current) {
-            // Current Order is always open and directly displays its foods & stepper
-            return true;
-        }
-        const key = batch ? (batch.round_key || batch.ticket_id) : null;
-        return Boolean(key && this.state.expandedRounds[key]);
+        return !this.state.collapsedTickets[batch.ticket_id];
     }
 
     get status() {
@@ -93,10 +37,14 @@ export class KitchenOrderStatusCard extends Component {
 
     get hasDisplays() {
         const s = this.status;
-        if (!s || s.is_cancelled || !s.has_kitchen || s.is_served_done || s.summary_state === "completed") {
-            return false;
-        }
-        return Boolean(this.batches.length);
+        return Boolean(
+            s &&
+            !s.is_cancelled &&
+            s.has_kitchen &&
+            !s.is_served_done &&
+            s.summary_state !== "completed" &&
+            ((s.batches && s.batches.length) || (s.displays && s.displays.length))
+        );
     }
 
     get batches() {
@@ -104,22 +52,35 @@ export class KitchenOrderStatusCard extends Component {
         if (!s || s.is_cancelled || !s.has_kitchen || s.is_served_done || s.summary_state === "completed") {
             return [];
         }
-        const allBatches = (s.batches && s.batches.length) ? s.batches : (s.displays || []).map((d, idx) => ({
+        if (s.batches && s.batches.length) {
+            // One block per kitchen station (Kitchen, Bar, Desserts...) of every unfinished round,
+            // so items going to different stations each show their own live KDS stage.
+            const blocks = [];
+            for (const batch of s.batches) {
+                if (batch.is_completed) {
+                    continue;
+                }
+                const stations = batch.stations && batch.stations.length ? batch.stations : [batch];
+                for (const station of stations) {
+                    blocks.push({
+                        ...station,
+                        ticket_id: `${batch.round_key || batch.ticket_id}_${station.display_id || 0}`,
+                        created_at: batch.created_at,
+                    });
+                }
+            }
+            return blocks;
+        }
+        return (s.displays || []).map((d, idx) => ({
             ...d,
             ticket_id: d.display_id || idx + 1,
             batch_number: idx + 1,
-            round_key: `disp_${idx + 1}`,
-            is_current: true,
-            title: _t("Current Order"),
             categories: [],
         }));
-        // Show strictly the current active order in the KDS tracker card
-        const current = allBatches.filter((b) => b.is_current && !b.is_completed && !b.is_served_done);
-        return current.length ? current : (allBatches.length && !allBatches[allBatches.length - 1].is_completed && !allBatches[allBatches.length - 1].is_served_done ? [allBatches[allBatches.length - 1]] : []);
     }
 
     get hasMultipleBatches() {
-        return false;
+        return this.batches.length > 1;
     }
 
     get summaryPillClass() {
@@ -135,17 +96,19 @@ export class KitchenOrderStatusCard extends Component {
     }
 
     getBatchTitle(batch) {
-        if (batch.title) {
-            return batch.title;
+        if (batch.display_name) {
+            return batch.display_name;
         }
-        if (batch.is_current) {
-            return _t("Current Order");
-        }
-        return batch.display_name || _t("Order");
+        return _t("Current Kitchen Order");
+    }
+
+    /** In the KDS's last stage ("Completed"), waiting for the kitchen to press Done. */
+    isFinalStage(disp) {
+        return Boolean(disp && disp.total_stages && disp.current_stage_index === disp.total_stages - 1);
     }
 
     getStationThemeClass(batch) {
-        if (batch.is_served_done || batch.is_completed) {
+        if (batch.is_served_done || batch.is_completed || this.isFinalStage(batch)) {
             return "hkd_self_status_station--completed";
         }
         const name = (batch.current_stage_name || "").toLowerCase();
@@ -168,7 +131,7 @@ export class KitchenOrderStatusCard extends Component {
     }
 
     getPillClass(disp) {
-        if (disp.is_served_done || disp.is_completed) {
+        if (disp.is_served_done || disp.is_completed || this.isFinalStage(disp)) {
             return "hkd_self_status_pill--done";
         }
         const name = (disp.current_stage_name || "").toLowerCase();
@@ -234,29 +197,149 @@ patch(SelfOrder.prototype, {
         });
     },
 
+    /**
+     * When an order has already been sent/synced to the server, do not reuse
+     * it for new cart items. Each new submission creates an individual order.
+     */
+    isOrderAvailable(order) {
+        if (this.config?.self_ordering_mode === "mobile" && order?.isSynced) {
+            return false;
+        }
+        return super.isOrderAvailable(...arguments);
+    },
+
+    async confirmationPage(screen_mode, device, access_token) {
+        await super.confirmationPage(...arguments);
+        // Reset selected order UUID so the next order placed by customer is a completely fresh order
+        this.selectedOrderUuid = null;
+    },
+
+    /**
+     * Same as Odoo's refresh, WITHOUT the "pay after meal" merge: Odoo picks the table's
+     * open order and deletes every other open order (moving its lines into it). Here every
+     * order stays separate; only the cart selection is kept valid.
+     */
+    async _getUserDataFromServer(tokens = [], opts = {}) {
+        if (this.config?.self_ordering_mode !== "mobile") {
+            return super._getUserDataFromServer(...arguments);
+        }
+        const tableIdentifier = this.currentTableIdentifier;
+        const dbAccessToken = this.models["pos.order"]
+            .filter((o) => o.state === "draft" && o.isSynced && o.access_token)
+            .map((order) => ({
+                access_token: order.access_token,
+                state: order.state,
+                write_date: serializeDateTime(order.write_date.plus({ seconds: 1 })),
+            }));
+        const argTokens = tokens.map((token) => ({
+            access_token: token,
+            write_date: "1970-01-01 00:00:00",
+        }));
+        const accessTokens = [...dbAccessToken, ...argTokens];
+        if (accessTokens.length === 0 && !tableIdentifier) {
+            return;
+        }
+        const pendingDeltas = this._computePendingDeltas();
+        try {
+            const data = await rpc(`/pos-self-order/get-user-data/`, {
+                access_token: this.access_token,
+                order_access_tokens: accessTokens,
+                table_identifier: tableIdentifier,
+            });
+            const result = this.models.connectNewData(data);
+            for (const order of result["pos.order"] || []) {
+                if (order.state === "draft") {
+                    this._reapplyPendingDeltas(order, pendingDeltas);
+                }
+            }
+            // Never reopen an order already sent to the kitchen as the cart
+            const selected = this.selectedOrderUuid
+                ? this.models["pos.order"].getBy("uuid", this.selectedOrderUuid)
+                : null;
+            if (selected && !this.isOrderAvailable(selected)) {
+                this.selectedOrderUuid = null;
+            }
+            this.data.debouncedSynchronizeLocalDataInIndexedDB();
+        } catch (error) {
+            this.handleErrorNotification(
+                error,
+                this.models["pos.order"].map((order) => order.access_token)
+            );
+        }
+    },
+
+    /** Download Receipt on every order sent to the restaurant (unpaid ones get a provisional bill). */
+    showDownloadButton(order) {
+        if (this.config?.self_ordering_mode !== "mobile") {
+            return super.showDownloadButton(...arguments);
+        }
+        return Boolean(order && typeof order.id === "number" && order.access_token && order.state !== "cancel");
+    },
+
+    async downloadReceipt(order) {
+        if (this.config?.self_ordering_mode !== "mobile") {
+            return super.downloadReceipt(...arguments);
+        }
+        // All states use our route: it falls back to a PDF when the server has no wkhtmltoimage
+        // (Odoo's own /pos-self-order/receipt then fails with "422 Unprocessable Entity").
+        if (!order?.id || typeof order.id !== "number") {
+            return;
+        }
+        const link = document.createElement("a");
+        link.href = `/pos-self-order/hkd-receipt/${order.id}?access_token=${encodeURIComponent(order.access_token)}`;
+        link.click();
+    },
+
+    /** True while the kitchen is still working on the order this status belongs to. */
+    isKitchenStatusActive(status) {
+        return Boolean(
+            status &&
+            !status.is_cancelled &&
+            status.has_kitchen &&
+            !status.is_served_done &&
+            status.summary_state !== "completed" &&
+            ((status.batches && status.batches.length) || (status.displays && status.displays.length))
+        );
+    },
+
+    /**
+     * Orders whose kitchen status must be (re)fetched:
+     * - orders not fetched yet,
+     * - orders the kitchen is still working on,
+     * - draft orders.
+     */
     getActiveKitchenOrders(orders = null) {
         let candidates = orders;
         if (!candidates || !candidates.length) {
-            const all = this.models["pos.order"]
-                .filter((o) => o && typeof o.id === "number" && o.access_token && o.state !== "cancel" && o.state !== "paid" && o.state !== "done")
-                .sort((a, b) => (b.id || 0) - (a.id || 0));
-            const cur = this.currentOrder;
-            if (cur && typeof cur.id === "number" && cur.access_token && cur.state !== "cancel" && cur.state !== "paid" && cur.state !== "done") {
-                candidates = [cur, ...all.filter((o) => o.id !== cur.id)];
-            } else {
-                candidates = all;
-            }
+            candidates = (this.models["pos.order"] || [])
+                .filter((o) => o && o.access_token)
+                .sort((a, b) => (b.id || 0) - (a.id || 0))
+                .slice(0, 20);
         }
         return (candidates || []).filter((o) => {
-            if (!o || typeof o.id !== "number" || !o.access_token || o.state === "cancel" || o.state === "paid" || o.state === "done") {
+            if (!o || !o.access_token || o.state === "cancel") {
                 return false;
             }
             const status = this.kitchenStatusByToken?.[o.access_token];
-            if (status && (status.is_served_done || status.summary_state === "completed" || status.is_cancelled || !status.has_kitchen)) {
-                return false;
+            if (!status || o.state === "draft") {
+                return true;
             }
-            return true;
+            return this.isKitchenStatusActive(status);
         });
+    },
+
+    _ensureKitchenTimer() {
+        if (this._kitchenTrackingTimer || this._kitchenTrackingCount <= 0) {
+            return;
+        }
+        this._kitchenTrackingTimer = setInterval(() => {
+            if (this._kitchenTrackingCount > 0) {
+                this.fetchKitchenStatus();
+            } else if (this._kitchenTrackingTimer) {
+                clearInterval(this._kitchenTrackingTimer);
+                this._kitchenTrackingTimer = null;
+            }
+        }, 3500);
     },
 
     async fetchKitchenStatus(orders = null) {
@@ -278,11 +361,11 @@ patch(SelfOrder.prototype, {
             }
             return;
         }
-        const seenIds = new Set();
+        const seenTokens = new Set();
         const payload = [];
         for (const o of activeOrders) {
-            if (!seenIds.has(o.id)) {
-                seenIds.add(o.id);
+            if (!seenTokens.has(o.access_token)) {
+                seenTokens.add(o.access_token);
                 payload.push({ id: o.id, access_token: o.access_token });
             }
         }
@@ -310,9 +393,11 @@ patch(SelfOrder.prototype, {
             if (!remaining.length && this._kitchenTrackingTimer) {
                 clearInterval(this._kitchenTrackingTimer);
                 this._kitchenTrackingTimer = null;
+            } else if (remaining.length) {
+                this._ensureKitchenTimer();
             }
         } catch {
-            // Transient network error: keep last shown kitchen stage and let next poll/WS recover.
+            // Keep last known state on transient error
         } finally {
             this._kitchenFetchInFlight = false;
             if (this._kitchenFetchQueued) {
@@ -338,16 +423,7 @@ patch(SelfOrder.prototype, {
             return;
         }
         this.fetchKitchenStatus(activeOrders);
-        if (!this._kitchenTrackingTimer) {
-            this._kitchenTrackingTimer = setInterval(() => {
-                if (this._kitchenTrackingCount > 0) {
-                    this.fetchKitchenStatus();
-                } else if (this._kitchenTrackingTimer) {
-                    clearInterval(this._kitchenTrackingTimer);
-                    this._kitchenTrackingTimer = null;
-                }
-            }, 3500);
-        }
+        this._ensureKitchenTimer();
     },
 
     stopKitchenTracking() {
@@ -375,12 +451,19 @@ patch(OrdersHistoryPage.prototype, {
         super.setup(...arguments);
         this._historyKitchenStarted = false;
         this._historyUnmounted = false;
-        onMounted(() => {
+        onMounted(async () => {
             if (this.selfOrder.config?.self_ordering_mode === "mobile") {
-                const active = this.activeOrder;
-                if (active) {
+                if (!this._historyUnmounted && !this._historyKitchenStarted) {
                     this._historyKitchenStarted = true;
-                    this.selfOrder.startKitchenTracking([active]);
+                    this.selfOrder.startKitchenTracking(this.orders);
+                }
+                try {
+                    await this.selfOrder.getUserDataFromServer();
+                    if (!this._historyUnmounted && this.orders?.length) {
+                        this.selfOrder.fetchKitchenStatus(this.orders);
+                    }
+                } catch {
+                    // Fallback
                 }
             }
         });
@@ -393,60 +476,73 @@ patch(OrdersHistoryPage.prototype, {
         });
     },
 
+    /**
+     * Checks if this specific order is active in the kitchen.
+     * When completed, it returns false, causing the KDS card to disappear.
+     */
     isOrderActive(order) {
-        if (!order || !order.access_token) {
-            return false;
-        }
-        if (order.state === "cancel" || order.state === "done") {
+        if (!order || !order.access_token || order.state === "cancel") {
             return false;
         }
         const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
-        if (status) {
-            if (status.is_cancelled || status.is_served_done || status.summary_state === "completed" || !status.has_kitchen) {
-                return false;
-            }
-            return true;
-        }
-        return (order.state === "draft" && Boolean(order.isSynced)) || order.state === "paid";
+        return Boolean(
+            status &&
+            !status.is_cancelled &&
+            status.has_kitchen &&
+            !status.is_served_done &&
+            status.summary_state !== "completed" &&
+            ((status.batches && status.batches.length) || (status.displays && status.displays.length))
+        );
     },
 
-    get allOrders() {
-        return this.selfOrder.models["pos.order"]
-            .filter((o) => o && o.access_token)
-            .sort((a, b) => (b.id || 0) - (a.id || 0));
-    },
-
-    get activeOrder() {
-        const cur = this.selfOrder.currentOrder;
-        if (cur && cur.access_token && this.isOrderActive(cur)) {
-            return cur;
-        }
-        return this.allOrders.find((o) => this.isOrderActive(o)) || null;
-    },
-
-    get currentOrderAccessToken() {
-        return this.activeOrder?.access_token || null;
-    },
-
+    /** Every order is its own card: orders still in the kitchen first, then newest first. */
     get orders() {
-        // Return strictly previous orders for the default list below
-        const activeToken = this.currentOrderAccessToken;
-        if (!activeToken) {
-            return this.allOrders;
+        const orders = super.orders;
+        if (this.selfOrder.config?.self_ordering_mode !== "mobile") {
+            return orders;
         }
-        return this.allOrders.filter((o) => o.access_token !== activeToken);
+        return [...orders].sort(
+            (a, b) =>
+                Number(this.isOrderActive(b)) - Number(this.isOrderActive(a)) || (b.id || 0) - (a.id || 0)
+        );
     },
 
-    get hasAnyOrders() {
-        return this.allOrders.length > 0;
+    /** Badge text: latest KDS stage while cooking, then Served / Paid. */
+    getOrderStatusLabel(order) {
+        if (order.state === "cancel") {
+            return _t("Cancelled");
+        }
+        const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
+        if (this.isOrderActive(order)) {
+            return status.summary_label || _t("Preparing");
+        }
+        if (["paid", "done", "invoiced"].includes(order.state)) {
+            return _t("Paid");
+        }
+        if (status && status.summary_state === "completed") {
+            return _t("Served");
+        }
+        if (typeof order.id !== "number") {
+            return _t("Not sent");
+        }
+        return _t("Ordered");
     },
 
-    get hasNoOrders() {
-        return this.allOrders.length === 0;
+    getOrderBadgeClass(order) {
+        const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
+        const label = (status?.summary_label || "").toLowerCase();
+        if (this.isOrderActive(order)) {
+            const lead = status?.batches?.[0];
+            if (lead && lead.total_stages && lead.current_stage_index === lead.total_stages - 1) {
+                return "text-bg-success"; // last KDS stage, waiting for "Done"
+            }
+            return label.includes("ready") ? "text-bg-info" : "text-bg-warning";
+        }
+        return ["paid", "done", "invoiced"].includes(order.state) ? "text-bg-success" : "text-bg-primary";
     },
 
     editOrder(order) {
-        // Do nothing when clicking order header or status pill - user requested not clickable
+        // Do not navigate away when clicking the order header
         return;
     },
 });
@@ -493,55 +589,18 @@ patch(CartPage.prototype, {
 
     get showKitchenStatusBanner() {
         const order = this.selfOrder.currentOrder;
-        if (!order || !order.isSynced || !order.access_token) return false;
-        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
-            return false;
-        }
-        const status = this.selfOrder.kitchenStatusByToken?.[order.access_token];
-        if (status && (status.is_served_done || status.summary_state === "completed" || status.is_cancelled || !status.has_kitchen)) {
-            return false;
-        }
         return Boolean(
             this.selfOrder.config?.self_ordering_mode === "mobile" &&
-            !this.isCheckout
+            !this.isCheckout &&
+            order &&
+            order.isSynced &&
+            order.access_token &&
+            order.state !== "cancel"
         );
-    },
-
-    get hasDraftLines() {
-        const order = this.selfOrder.currentOrder;
-        if (!order) return false;
-        const changesCount = Object.keys(order.changes || {}).length;
-        const unsentCount = (order.unsentLines || []).length;
-        return changesCount > 0 || unsentCount > 0;
-    },
-
-    get showOrderBox() {
-        if (!this.showKitchenStatusBanner) {
-            return true;
-        }
-        return this.hasDraftLines;
     },
 
     openMyOrders() {
         this.router.navigate("orderHistory");
-    },
-
-    get orderNote() {
-        if (this.selfOrder?.currentOrder?.unsentLines?.length > 0) {
-            return this.state?.orderNoteValue || "";
-        }
-        return this.selfOrder?.currentOrder?.general_customer_note || this.state?.orderNoteValue || "";
-    },
-
-    async pay() {
-        const noteText = (this.state?.orderNoteValue || "").trim();
-        if (this.selfOrder?.currentOrder && noteText) {
-            this.selfOrder.currentOrder.general_customer_note = noteText;
-        }
-        await super.pay(...arguments);
-        if (this.state) {
-            this.state.orderNoteValue = "";
-        }
     },
 });
 
@@ -570,6 +629,21 @@ patch(ConfirmationPage.prototype, {
         });
     },
 
+    /**
+     * Mobile mode clears selectedOrderUuid once an order is sent (so the next cart is a fresh
+     * order). Odoo's getter only looks at selectedOrderUuid, which then returns undefined and
+     * the page crashes ("reading 'preset_id'") with a blank screen. Fall back to the order of
+     * this page's access token.
+     */
+    get confirmedOrder() {
+        return (
+            super.confirmedOrder ||
+            this.selfOrder.models["pos.order"].find(
+                (o) => o.access_token === this.props.orderAccessToken
+            )
+        );
+    },
+
     async initOrder() {
         await super.initOrder(...arguments);
         if (this.selfOrder.config?.self_ordering_mode === "mobile" && this.confirmedOrder?.access_token) {
@@ -578,13 +652,9 @@ patch(ConfirmationPage.prototype, {
     },
 
     get showMobileKitchenStatus() {
-        const order = this.confirmedOrder;
-        if (!order || !order.access_token) return false;
-        if (order.state === "cancel" || order.state === "paid" || order.state === "done") {
-            return false;
-        }
         return Boolean(
-            this.selfOrder.config?.self_ordering_mode === "mobile"
+            this.selfOrder.config?.self_ordering_mode === "mobile" &&
+            this.confirmedOrder?.access_token
         );
     },
 

@@ -153,19 +153,23 @@ class PosOrder(models.Model):
     def _get_self_order_kitchen_status(self):
         """Return strictly scoped Kitchen Display 3-stage progress for this single POS order."""
         self.ensure_one()
-        if self.state in ('cancel', 'paid', 'done'):
-            return {
-                'order_id': self.id,
-                'order_access_token': self.access_token or '',
-                'is_cancelled': (self.state == 'cancel'),
-                'has_kitchen': False,
-                'summary_state': 'completed' if self.state in ('paid', 'done') else 'cancelled',
-                'summary_label': 'Completed' if self.state in ('paid', 'done') else 'Cancelled',
-                'is_served_done': (self.state in ('paid', 'done')),
-                'displays': [],
-                'batches': [],
-                'categories': [],
-            }
+        finalized_payload = {
+            'order_id': self.id,
+            'order_access_token': self.access_token or '',
+            'is_cancelled': (self.state == 'cancel'),
+            'has_kitchen': False,
+            'summary_state': 'cancelled' if self.state == 'cancel' else 'completed',
+            'summary_label': 'Cancelled' if self.state == 'cancel' else 'Completed',
+            'is_served_done': self.state != 'cancel',
+            'displays': [],
+            'batches': [],
+            'categories': [],
+        }
+        if self.state == 'cancel':
+            return finalized_payload
+        # Paid/done orders can still be cooking (pay-first self ordering), so their
+        # kitchen tickets decide whether they are still active.
+        is_finalized = self.state in ('paid', 'done')
 
         company = self.company_id or (
             self.config_id.company_id if self.config_id and self.config_id.company_id else self.env.company
@@ -190,6 +194,8 @@ class PosOrder(models.Model):
         if self.config_id:
             tickets = tickets.filtered(lambda t: not t.config_id or t.config_id.id == self.config_id.id)
 
+        if not tickets and is_finalized:
+            return finalized_payload
         if not tickets:
             config = self.config_id
             configured_displays = self.env['pos.prep.display'].sudo().search([
@@ -344,11 +350,10 @@ class PosOrder(models.Model):
             }
 
         def _is_ticket_completed(t):
-            st_list = list(t.display_id.stage_ids.sorted('sequence'))
-            if not st_list:
-                return False
-            curr_st = t.stage_id if t.stage_id in st_list else st_list[0]
-            return st_list.index(curr_st) == len(st_list) - 1
+            # A ticket is finished only when the kitchen pressed "Done" (which archives it).
+            # Reaching the last stage ("Completed") alone keeps it visible on the guest's
+            # phone - showing "Completed" - until Done is clicked on the KDS.
+            return not t.active
 
         # Group tickets into distinct dining rounds based on send timestamp (<= 20s difference)
         rounds = []
@@ -365,67 +370,50 @@ class PosOrder(models.Model):
         total_rounds = len(rounds)
         batches = []
 
-        for idx_r, r_tickets in enumerate(rounds, start=1):
-            is_current = (idx_r == total_rounds)
-            primary_ticket = r_tickets[-1]
-            disp = primary_ticket.display_id
-            stages = list(disp.stage_ids.sorted('sequence')) if disp else []
-            if not stages:
-                continue
-
-            # Determine stage for this round across its tickets
-            active_tickets = [t for t in r_tickets if not _is_ticket_completed(t)]
-            if active_tickets:
-                best_ticket = active_tickets[0]
-                r_stage = best_ticket.stage_id if best_ticket.stage_id in stages else stages[0]
-                r_idx = stages.index(r_stage) if r_stage in stages else 0
-                r_completed = False
-            else:
-                r_stage = stages[-1]
-                r_idx = len(stages) - 1
-                r_completed = True
-
-            r_stage_items = []
+        def _stage_items(stages, cur_idx, completed):
+            items = []
             for s_idx, st in enumerate(stages):
-                if r_completed or s_idx < r_idx:
+                if completed or s_idx < cur_idx:
                     st_state = 'done'
-                elif s_idx == r_idx:
+                elif s_idx == cur_idx:
                     st_state = 'active'
                 else:
                     st_state = 'pending'
-                r_stage_items.append({
+                items.append({
                     'id': st.id,
                     'name': st.name,
                     'sequence': st.sequence,
                     'color': st.color or '#C8C9CB',
                     'state': st_state,
                 })
+            return items
 
-            # Aggregate all lines ordered in this round
-            batch_cats = {}
-            r_total_qty = 0
-            for t in r_tickets:
+        def _station_payload(disp, disp_tickets, idx_r):
+            """Live status of ONE kitchen station (KDS display) for this order:
+            its own stage, stepper and items, independent of the other stations."""
+            stages = list(disp.stage_ids.sorted('sequence'))
+            active = [t for t in disp_tickets if not _is_ticket_completed(t)]
+            if active:
+                # least advanced ticket of this station drives its status
+                cur_idx = min(stages.index(t.stage_id) if t.stage_id in stages else 0 for t in active)
+                completed = False
+            else:
+                cur_idx = len(stages) - 1
+                completed = True
+            cur_stage = stages[cur_idx]
+            cats = {}
+            total_qty = 0
+            for t in disp_tickets:
                 t_completed = _is_ticket_completed(t)
                 for kl in t.line_ids.sorted('id'):
                     categs = get_pos_categories(kl.product_id) if kl.product_id else False
                     cat = categs[:1] if categs else False
                     cat_id = cat.id if cat else 0
-                    cat_name = (cat.name or 'Other') if cat else 'Other'
                     qty_val = int(kl.qty) if float(kl.qty).is_integer() else kl.qty
                     line_done = bool(t_completed or kl.is_done)
-                    line_payload = {
-                        'id': kl.id,
-                        'product_id': kl.product_id.id if kl.product_id else 0,
-                        'name': kl.name or (kl.product_id.display_name if kl.product_id else 'Item'),
-                        'qty': qty_val,
-                        'note': kl.note or '',
-                        'is_done': line_done,
-                        'stage_name': r_stage.name,
-                        'batch_number': idx_r,
-                    }
-                    b_cat = batch_cats.setdefault(cat_id, {
+                    b_cat = cats.setdefault(cat_id, {
                         'category_id': cat_id,
-                        'category_name': cat_name,
+                        'category_name': (cat.name or 'Other') if cat else 'Other',
                         'total_qty': 0,
                         'done_count': 0,
                         'total_count': 0,
@@ -433,10 +421,68 @@ class PosOrder(models.Model):
                     })
                     b_cat['total_qty'] += qty_val
                     b_cat['total_count'] += 1
-                    if line_done:
-                        b_cat['done_count'] += 1
-                    b_cat['lines'].append(line_payload)
-                    r_total_qty += qty_val
+                    b_cat['done_count'] += 1 if line_done else 0
+                    b_cat['lines'].append({
+                        'id': kl.id,
+                        'product_id': kl.product_id.id if kl.product_id else 0,
+                        'name': kl.name or (kl.product_id.display_name if kl.product_id else 'Item'),
+                        'qty': qty_val,
+                        'note': kl.note or '',
+                        'is_done': line_done,
+                        'stage_name': cur_stage.name,
+                        'station_name': disp.name,
+                        'batch_number': idx_r,
+                    })
+                    total_qty += qty_val
+            return {
+                'display_id': disp.id,
+                'display_name': disp.name,
+                'ticket_ids': [t.id for t in disp_tickets],
+                'current_stage_id': cur_stage.id,
+                'current_stage_name': cur_stage.name,
+                'current_stage_color': cur_stage.color or '#C8C9CB',
+                'current_stage_index': cur_idx,
+                'total_stages': len(stages),
+                'progress': (cur_idx + (1 if completed else 0)) / (len(stages) or 1),
+                'is_completed': completed,
+                'is_served_done': completed,
+                'stages': _stage_items(stages, cur_idx, completed),
+                'categories': sorted(cats.values(), key=lambda c: (c['category_id'] == 0, c['category_name'])),
+                'total_qty': total_qty,
+            }
+
+        for idx_r, r_tickets in enumerate(rounds, start=1):
+            is_current = (idx_r == total_rounds)
+            primary_ticket = r_tickets[-1]
+
+            # One status per kitchen station (e.g. Kitchen, Bar, Desserts) in this round
+            by_display = {}
+            for t in r_tickets:
+                if t.display_id and t.display_id.stage_ids:
+                    by_display.setdefault(t.display_id, []).append(t)
+            stations = [_station_payload(d, d_tickets, idx_r) for d, d_tickets in by_display.items()]
+            if not stations:
+                continue
+
+            # Round status = slowest station still working (or the last one when all are done)
+            working = [s for s in stations if not s['is_completed']]
+            lead_station = min(working, key=lambda s: s['progress']) if working else stations[-1]
+            r_idx = lead_station['current_stage_index']
+            r_completed = not working
+            r_stage_items = lead_station['stages']
+
+            # Aggregate all lines ordered in this round (all stations together)
+            merged = {}
+            for s in stations:
+                for c in s['categories']:
+                    m = merged.setdefault(c['category_id'], {**c, 'lines': [], 'total_qty': 0,
+                                                             'done_count': 0, 'total_count': 0})
+                    m['lines'] += c['lines']
+                    m['total_qty'] += c['total_qty']
+                    m['done_count'] += c['done_count']
+                    m['total_count'] += c['total_count']
+            batch_cats = merged
+            r_total_qty = sum(s['total_qty'] for s in stations)
 
             pos_ref = self.pos_reference or self.name or ''
             tracking_num = self.tracking_number or ''
@@ -453,16 +499,17 @@ class PosOrder(models.Model):
                 'kds_reference': f"#{tracking_num}" if tracking_num else pos_ref,
                 'barcode': primary_ticket.barcode or f'KDS{primary_ticket.id:06d}',
                 'created_at': fields.Datetime.to_string(r_tickets[0].create_date) if r_tickets[0].create_date else '',
-                'display_id': disp.id,
-                'display_name': disp.name,
-                'current_stage_id': r_stage.id,
-                'current_stage_name': r_stage.name,
-                'current_stage_color': r_stage.color or '#C8C9CB',
+                'display_id': lead_station['display_id'],
+                'display_name': lead_station['display_name'],
+                'current_stage_id': lead_station['current_stage_id'],
+                'current_stage_name': lead_station['current_stage_name'],
+                'current_stage_color': lead_station['current_stage_color'],
                 'current_stage_index': r_idx,
-                'total_stages': len(stages),
+                'total_stages': lead_station['total_stages'],
                 'is_completed': r_completed,
                 'is_served_done': r_completed,
                 'stages': r_stage_items,
+                'stations': stations,
                 'categories': sorted(batch_cats.values(), key=lambda c: (c['category_id'] == 0, c['category_name'])),
                 'total_qty': r_total_qty,
                 'total_items': sum(len(c['lines']) for c in batch_cats.values()),
@@ -471,6 +518,8 @@ class PosOrder(models.Model):
         # Reverse so Current Order is top, followed by newest to oldest previous orders
         batches_reversed = list(reversed(batches))
         current_batch = batches_reversed[0] if batches_reversed else False
+        if is_finalized and not current_batch:
+            return finalized_payload
 
         primary_disp = all_ordered_tickets[-1].display_id
         disp_stages = list(primary_disp.stage_ids.sorted('sequence')) if primary_disp else []
@@ -510,8 +559,21 @@ class PosOrder(models.Model):
             'is_served_done': current_completed,
             'displays': display_statuses,
             'batches': batches_reversed,
+            'stations': current_batch['stations'] if current_batch else [],
             'categories': current_batch['categories'] if current_batch else [],
         }
+
+    @api.model
+    def _get_open_order(self, order):
+        """Keep every self-order (QR / mobile) as its own POS order.
+
+        pos_restaurant attaches an incoming draft order to ANY open draft order of the
+        same table, which merged a guest's second order into the first one. Self-orders
+        are matched on their own uuid only; staff POS orders keep the table behaviour.
+        """
+        if order.get('source') in ('mobile', 'kiosk'):
+            return self.search([('uuid', '=', order.get('uuid'))], limit=1, order='id desc')
+        return super()._get_open_order(order)
 
     def action_manual_send_to_kitchen(self):
         """Manual re-send: pushes any order lines that haven't reached a

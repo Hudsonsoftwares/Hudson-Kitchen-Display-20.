@@ -1449,6 +1449,21 @@ class TestSelfOrderKitchenStatusTracking(HttpCase):
         t1.invalidate_recordset()
         self.assertEqual(t1.stage_id.id, st_ready.id, "Must advance only 1 stage to Ready, never auto-jump to Completed")
 
+        # Striking every item while the ticket is in Ready completes it (one stage: Ready -> Completed);
+        # the items are un-struck when the order moves to Completed
+        res_ready = _rpc('/hudson_kitchen_display/toggle_line', {'line_id': l1.id})
+        self.assertTrue(res_ready['is_done'])
+        self.assertFalse(res_ready['advanced'])
+        res_ready = _rpc('/hudson_kitchen_display/toggle_line', {'line_id': l2.id})
+        self.assertTrue(res_ready['advanced'])
+        self.assertEqual(res_ready['stage_id'], st_comp.id)
+        t1.invalidate_recordset()
+        self.assertEqual(t1.stage_id.id, st_comp.id, "Striking every item in Ready completes the order")
+        self.assertFalse(any(t1.line_ids.mapped('is_done')), "Items are not auto-struck when the order is completed")
+        # back to Ready with items un-struck so the rest of this test starts from the same state
+        t1.write({'stage_id': st_ready.id})
+        t1.line_ids.write({'is_done': False})
+
         # Duplicate/stale change_stage carrying expected_stage_id=To cook must be rejected!
         stale_res = _rpc('/hudson_kitchen_display/change_stage', {
             'order_id': t1.id,

@@ -363,6 +363,9 @@ class PosKitchenOrderLine(models.Model):
             advanced = False
             if order and order.line_ids and all(l.is_done for l in order.line_ids):
                 stages = list(order.display_id.stage_ids.sorted('sequence'))
+                # Striking every item advances the ticket one stage (To cook -> Ready ->
+                # Completed). Lines are un-struck on every move, so each stage (including
+                # Completed) starts with clean, un-ticked items.
                 if order.stage_id in stages and stages.index(order.stage_id) + 1 < len(stages):
                     order.action_next_stage()
                     order.line_ids.write({'is_done': False})
